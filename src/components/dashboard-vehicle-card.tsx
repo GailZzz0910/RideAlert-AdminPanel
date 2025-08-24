@@ -25,6 +25,7 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
   statusColor,
   orderCompleted,
   maxLoad,
+  driver
 }) => {
   const navigate = useNavigate();
 
@@ -33,6 +34,7 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
   };
 
   return (
+
     <Card 
       className="group cursor-pointer relative overflow-hidden w-full transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-card border-border"
       onClick={handleCardClick}
@@ -54,7 +56,7 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-lg text-foreground leading-tight truncate">{title}</h3>
-               <p className="text-sm text-muted-foreground mt-1  truncate">Abegail Padraque</p>
+               <p className="text-sm text-muted-foreground mt-1  truncate">{driver}</p>
              
             </div>
             <span className={cn(
