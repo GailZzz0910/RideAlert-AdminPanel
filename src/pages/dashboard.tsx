@@ -1,7 +1,5 @@
 import { useUser } from "../context/userContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-import { vehicles } from "../data/vehicle-data";
 import { DashboardCountCard } from "@/components/dashboard-count-card";
 import { Car, CheckCircle, XCircle, AlertCircle, Search, ChevronDown, ListFilter } from "lucide-react";
 import {
@@ -15,8 +13,11 @@ import React, { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { useVehicle } from "@/context/vehicleContext";
+import { useVehicleWebSocket } from "@/components/useVehicleWebsocket";
+import { wsBaseURL } from "@/utils/api";
 
 export default function DashboardPage() {
+  const liveVehicles = useVehicleWebSocket(`${wsBaseURL}/ws/vehicles/all`);
   const { user, token } = useUser();
   const [searchValue, setSearchValue] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Any");
@@ -32,20 +33,16 @@ export default function DashboardPage() {
     console.log("Current token:", token);
   }, [user, token]);
 
-  // ...existing code...
-
-  // Place all remaining logic and return statement here
-
-  // Count vehicles by status
   const { total, available, full, unavailable } = useVehicle();
 
   // Filter vehicles by type
-  const filteredVehicles = vehicles.filter((v) => {
-    if (selectedVehicleType === "Any") return true;
-    if (selectedVehicleType.toLowerCase() === "available") return v.status === "available";
-    if (selectedVehicleType.toLowerCase() === "full") return v.status === "full";
-    if (selectedVehicleType.toLowerCase() === "unavailable") return v.status === "unavailable";
-    return true;
+  const filteredVehicles = liveVehicles.filter((v) => {
+    const matchesType =
+      selectedVehicleType === "Any" ||
+      v.status === selectedVehicleType.toLowerCase();
+    const matchesSearch =
+      v.route.toLowerCase().includes(searchValue.toLowerCase());
+    return matchesType && matchesSearch;
   });
 
   return (
@@ -128,18 +125,18 @@ export default function DashboardPage() {
           <div className="flex items-center justify-center h-40 text-muted-foreground text-lg font-medium">No Vehicles</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-6 gap-4 md:gap-6 2xl:gap-5 xl:gap-8 mb-10">
-            {filteredVehicles.map((v, i) => (
+            {filteredVehicles.map((v) => (
               <DashboardVehicleCard
-                key={i}
+                key={v.id}
                 title={v.route}
-                subtitle={`ETA: ${v.eta}`}
+                subtitle={`ETA: unknown`} // Replace with real ETA if available
                 status={getVehicleStatusFromData(v.status)}
                 statusColor={getStatusColorFromData(v.status)}
-                orderCompleted={v.seats}
-                lastCheckIn={v.eta}
+                orderCompleted={v.available_seats}
+                lastCheckIn={"N/A"}
                 lastCheckInAgo={v.status === 'available' ? 'Available' : v.status === 'full' ? 'Full' : 'Unavailable'}
-                maxLoad={v.seats > 0 ? `${v.seats} seats` : 'No seats'}
-                driver={"-"}
+                maxLoad={"30 seats"} // Or use dynamic value
+                driver={v.driverName}
               />
             ))}
           </div>
