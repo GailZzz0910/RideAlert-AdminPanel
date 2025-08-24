@@ -21,7 +21,6 @@ export default function DashboardPage() {
   const [searchValue, setSearchValue] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Any");
   const [loading, setLoading] = useState(true);
-  const { vehicleCount } = useVehicle();
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);
@@ -38,10 +37,7 @@ export default function DashboardPage() {
   // Place all remaining logic and return statement here
 
   // Count vehicles by status
-  const total = vehicleCount;
-  const available = vehicles.filter(v => v.status === 'available').length;
-  const full = vehicles.filter(v => v.status === 'full').length;
-  const unavailable = vehicles.filter(v => v.status === 'unavailable').length;
+  const { total, available, full, unavailable } = useVehicle();
 
   // Filter vehicles by type
   const filteredVehicles = vehicles.filter((v) => {

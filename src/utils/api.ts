@@ -5,6 +5,10 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// 🔑 Add WebSocket base URL (not part of axios, so export separately)
+export const wsBaseURL =
+  import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8000";
+
 // Add a request interceptor to add the token to all requests
 api.interceptors.request.use(
   (config) => {

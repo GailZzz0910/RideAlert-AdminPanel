@@ -1,38 +1,62 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import api from "@/utils/api";
+import { wsBaseURL } from "@/utils/api";
 
-interface VehicleContextProps {
-  vehicleCount: number;
+interface VehicleCounts {
+    total: number;
+    available: number;
+    full: number;
+    unavailable: number;
 }
 
-const VehicleContext = createContext<VehicleContextProps>({ vehicleCount: 0 });
+const VehicleContext = createContext<VehicleCounts>({
+    total: 0,
+    available: 0,
+    full: 0,
+    unavailable: 0,
+});
 
 export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [vehicleCount, setVehicleCount] = useState(0);
+    const [counts, setCounts] = useState<VehicleCounts>({
+        total: 0,
+        available: 0,
+        full: 0,
+        unavailable: 0,
+    });
 
-  const fetchVehicleCount = async () => {
-    try {
-      const res = await api.get("/vehicles/count");
-      setVehicleCount(res.data.count);
-    } catch (error) {
-      console.error("Error fetching vehicle count:", error);
-    }
-  };
+    useEffect(() => {
+        const ws = new WebSocket(`${wsBaseURL}/ws/vehicle-counts`);
 
-  useEffect(() => {
-    fetchVehicleCount();
-    const interval = setInterval(fetchVehicleCount, 5000);
-    return () => clearInterval(interval);
-  }, []);
+        ws.onopen = () => {
+            console.log("✅ Connected to vehicle-counts WebSocket");
+        };
 
-  return (
-    <VehicleContext.Provider value={{ vehicleCount }}>
-      {children}
-    </VehicleContext.Provider>
-  );
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                setCounts({
+                    total: data.total || 0,
+                    available: data.available || 0,
+                    full: data.full || 0,
+                    unavailable: data.unavailable || 0,
+                });
+            } catch (err) {
+                console.error("Error parsing vehicle counts:", err);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("❌ Vehicle-counts WebSocket closed");
+        };
+
+        return () => ws.close();
+    }, []);
+
+    return (
+        <VehicleContext.Provider value={counts}>
+            {children}
+        </VehicleContext.Provider>
+    );
 };
 
-// ✅ custom hook
-export const useVehicle = () => {
-  return useContext(VehicleContext);
-};
+// ✅ Custom hook
+export const useVehicle = () => useContext(VehicleContext);
