@@ -57,6 +57,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 		try {
 			const res = await api.post("/users/login", { email, password });
 			const { access_token, user } = res.data;
+
+			if (user.role != "admin") {
+				setError("User account is prohibited from logging in.");
+				return false;
+			}
+
 			setToken(access_token);
 			setUser(user);
 			localStorage.setItem("token", access_token);
