@@ -12,28 +12,31 @@ import VehicleManagement from "./pages/vehicle-management";
 import Settings from "./pages/settings";
 import Map from "./pages/map";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { VehicleProvider } from "./context/vehicleContext";
 
 function App() {
     return (
         <UserProvider>
-            <ThemeProvider>
-                <Router>
-                    <Routes>
-                        <Route path="/" element={<Landing />} />
-                        <Route path="/dashboard" element={
-                            <ProtectedRoute>
-                                <NewDashboardLayout />
-                            </ProtectedRoute>
-                        }>
-                            <Route index element={<Dashboard />} />
-                            <Route path="add-vehicle" element={<AddVehicle />} />
-                            <Route path="vehicle-management" element={<VehicleManagement />} />
-                            <Route path="settings" element={<Settings />} />
-                            <Route path="maps" element={<Map />} />
-                        </Route>
-                    </Routes>
-                </Router>
-            </ThemeProvider>
+            <VehicleProvider>
+                <ThemeProvider>
+                    <Router>
+                        <Routes>
+                            <Route path="/" element={<Landing />} />
+                            <Route path="/dashboard" element={
+                                <ProtectedRoute>
+                                    <NewDashboardLayout />
+                                </ProtectedRoute>
+                            }>
+                                <Route index element={<Dashboard />} />
+                                <Route path="add-vehicle" element={<AddVehicle />} />
+                                <Route path="vehicle-management" element={<VehicleManagement />} />
+                                <Route path="settings" element={<Settings />} />
+                                <Route path="maps" element={<Map />} />
+                            </Route>
+                        </Routes>
+                    </Router>
+                </ThemeProvider>
+            </VehicleProvider>
         </UserProvider>
     );
 }

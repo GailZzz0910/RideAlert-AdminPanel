@@ -14,12 +14,14 @@ import { DashboardVehicleCard } from "@/components/dashboard-vehicle-card";
 import React, { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
+import { useVehicle } from "@/context/vehicleContext";
 
 export default function DashboardPage() {
   const { user, token } = useUser();
   const [searchValue, setSearchValue] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Any");
   const [loading, setLoading] = useState(true);
+  const { vehicleCount } = useVehicle();
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);
@@ -36,7 +38,7 @@ export default function DashboardPage() {
   // Place all remaining logic and return statement here
 
   // Count vehicles by status
-  const total = vehicles.length;
+  const total = vehicleCount;
   const available = vehicles.filter(v => v.status === 'available').length;
   const full = vehicles.filter(v => v.status === 'full').length;
   const unavailable = vehicles.filter(v => v.status === 'unavailable').length;
@@ -100,19 +102,19 @@ export default function DashboardPage() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setSelectedVehicleType("Any")}> 
+                <DropdownMenuItem onClick={() => setSelectedVehicleType("Any")}>
                   <span className="inline-block w-2 h-2 rounded-full bg-gray-400 mr-2 align-middle" />
                   Any
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedVehicleType("Available")}> 
+                <DropdownMenuItem onClick={() => setSelectedVehicleType("Available")}>
                   <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2 align-middle" />
                   Available
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedVehicleType("Full")}> 
+                <DropdownMenuItem onClick={() => setSelectedVehicleType("Full")}>
                   <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-2 align-middle" />
                   Full
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSelectedVehicleType("Unavailable")}> 
+                <DropdownMenuItem onClick={() => setSelectedVehicleType("Unavailable")}>
                   <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2 align-middle" />
                   Unavailable
                 </DropdownMenuItem>
