@@ -10,7 +10,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { vehicles } from "../data/vehicle-data";
+import { useVehicleWebSocket } from "@/components/useVehicleWebsocket";
 import { Search, ListFilter, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,23 +22,21 @@ import { useState } from "react";
 
 
 export default function VehicleManagement() {
+  const liveVehicles = useVehicleWebSocket("ws://192.168.1.7:8000/ws/vehicles/all");
   const [searchValue, setSearchValue] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Any");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editVehicle, setEditVehicle] = useState<VehicleListItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
 
-  // Filter vehicles by type and search
-  const filteredVehicles = vehicles.filter((v) => {
+  const filteredVehicles = liveVehicles.filter((v) => {
     const matchesType =
       selectedVehicleType === "Any" ||
       v.status === selectedVehicleType.toLowerCase();
     const matchesSearch =
-      v.route.toLowerCase().includes(searchValue.toLowerCase()) ||
-      v.eta.toLowerCase().includes(searchValue.toLowerCase());
+      v.route.toLowerCase().includes(searchValue.toLowerCase());
     return matchesType && matchesSearch;
   });
-
   // Handler to open edit dialog
   const handleEdit = (vehicle: VehicleListItem) => {
     setEditVehicle(vehicle);
@@ -76,32 +74,32 @@ export default function VehicleManagement() {
           {/* Right side - Filter Dropdown */}
           <div className="flex items-center gap-2">
             <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg bg-card text-foreground hover:bg-muted">
-                              <ListFilter className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">{selectedVehicleType}</span>
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem onClick={() => setSelectedVehicleType("Any")}> 
-                              <span className="inline-block w-2 h-2 rounded-full bg-gray-400 mr-2 align-middle" />
-                              Any
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSelectedVehicleType("Available")}> 
-                              <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2 align-middle" />
-                              Available
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSelectedVehicleType("Full")}> 
-                              <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-2 align-middle" />
-                              Full
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSelectedVehicleType("Unavailable")}> 
-                              <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2 align-middle" />
-                              Unavailable
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg bg-card text-foreground hover:bg-muted">
+                  <ListFilter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{selectedVehicleType}</span>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => setSelectedVehicleType("Any")}>
+                  <span className="inline-block w-2 h-2 rounded-full bg-gray-400 mr-2 align-middle" />
+                  Any
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedVehicleType("Available")}>
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2 align-middle" />
+                  Available
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedVehicleType("Full")}>
+                  <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-2 align-middle" />
+                  Full
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedVehicleType("Unavailable")}>
+                  <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2 align-middle" />
+                  Unavailable
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         {/* Vehicle Table */}
@@ -110,18 +108,18 @@ export default function VehicleManagement() {
         ) : (
           <VehicleListView
             vehicles={filteredVehicles.map((v) => ({
-              img: v.img,
               title: v.route,
-              subtitle: `ETA: ${v.eta}`,
+              subtitle: `Plate: ${v.plate}`, // or use ETA if available
               status: getVehicleStatusFromData(v.status),
               statusColor: getStatusColorFromData(v.status),
-              orderCompleted: v.seats,
-              lastCheckIn: v.eta,
+              orderCompleted: v.available_seats,
+              lastCheckIn: "N/A", // or use timestamp if available
               lastCheckInAgo: v.status === "available" ? "Available" : v.status === "full" ? "Full" : "Unavailable",
-              maxLoad: v.seats > 0 ? `${v.seats} seats` : "No seats",
-              driver: "-",
+              maxLoad: `${v.available_seats} seats`,
+              driver: v.driverName,
               onEdit: handleEdit,
             }))}
+
           />
         )}
 
