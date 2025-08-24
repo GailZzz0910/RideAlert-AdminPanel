@@ -71,7 +71,7 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
           {/* Details section */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Available Seats</span>
+              <span className="text-sm text-muted-foreground">ETA</span>
                 <span className="text-sm font-semibold text-foreground bg-muted px-2 py-1 rounded">
                 {subtitle}
               </span>
