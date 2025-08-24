@@ -65,7 +65,7 @@ export default function DashboardPage() {
           <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
             All vehicles
             <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-1 rounded-md">
-              {filteredVehicles.length}
+              {total}
             </span>
           </h2>
         </div>

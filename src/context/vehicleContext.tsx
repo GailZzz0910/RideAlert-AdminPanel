@@ -27,7 +27,7 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const ws = new WebSocket(`${wsBaseURL}/ws/vehicle-counts`);
 
         ws.onopen = () => {
-            console.log("✅ Connected to vehicle-counts WebSocket");
+            console.log("Connected to vehicle-counts WebSocket");
         };
 
         ws.onmessage = (event) => {
@@ -45,7 +45,7 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
 
         ws.onclose = () => {
-            console.log("❌ Vehicle-counts WebSocket closed");
+            console.log("Vehicle-counts WebSocket closed");
         };
 
         return () => ws.close();
