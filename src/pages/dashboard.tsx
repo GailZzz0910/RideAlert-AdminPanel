@@ -17,11 +17,15 @@ import { useVehicleWebSocket } from "@/components/useVehicleWebsocket";
 import { wsBaseURL } from "@/utils/api";
 
 export default function DashboardPage() {
-  const liveVehicles = useVehicleWebSocket(`${wsBaseURL}/ws/vehicles/all`);
   const { user, token } = useUser();
   const [searchValue, setSearchValue] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Any");
   const [loading, setLoading] = useState(true);
+
+  const fleetId = user?.id; // <-- your logs show user.id is the fleet_id
+  const liveVehicles = useVehicleWebSocket(
+    `${wsBaseURL}/ws/vehicles/all/${fleetId}`
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);
@@ -33,7 +37,10 @@ export default function DashboardPage() {
     console.log("Current token:", token);
   }, [user, token]);
 
-  const { total, available, full, unavailable } = useVehicle();
+  const total = liveVehicles.length;
+  const available = liveVehicles.filter(v => v.status === "available").length;
+  const full = liveVehicles.filter(v => v.status === "full").length;
+  const unavailable = liveVehicles.filter(v => v.status === "unavailable").length;
 
   // Filter vehicles by type
   const filteredVehicles = liveVehicles.filter((v) => {

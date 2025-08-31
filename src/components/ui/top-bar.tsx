@@ -95,7 +95,7 @@ const UserProfileDropdown: React.FC<{ signOut: () => void }> = ({ signOut }) => 
       <DropdownMenuContent align="end" className="w-56">
         <div className="px-3 py-2">
           <div className="font-medium text-sm text-primary">
-            {user ? `${user.first_name} ${user.last_name}` : "Guest"}
+            {user?.company_name || "Guest"}
           </div>
           <div className="text-xs text-gray-400">
             {user?.role || "Unknown"}

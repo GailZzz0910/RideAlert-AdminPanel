@@ -4,13 +4,15 @@ import api from "../utils/api";
 
 interface User {
 	id: string;
-	first_name: string;
-	last_name: string;
-	email: string;
-	gender: string;
-	address: string;
+	company_name: string;
+	company_code: string;
+	contact_info?: Array<any>;
+	subscription_plan: string;
+	is_active: boolean;
+	max_vehicles: number;
 	role: string;
-	location: Record<string, any>;
+	created_at: string;
+	last_updated: string;
 }
 
 interface UserContextType {
@@ -55,29 +57,31 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 		setLoading(true);
 		setError(null);
 		try {
-			const res = await api.post("/users/login", { email, password });
-			const { access_token, user } = res.data;
+			const res = await api.post("/fleets/login", { email, password });
+			const { access_token, fleet } = res.data;
 
-			if (user.role != "admin") {
+			if (fleet.role !== "admin") {
 				setError("User account is prohibited from logging in.");
 				return false;
 			}
 
 			setToken(access_token);
-			setUser(user);
+			setUser(fleet);
 			localStorage.setItem("token", access_token);
-			localStorage.setItem("user", JSON.stringify(user));
-			return true; // Login successful
+			localStorage.setItem("user", JSON.stringify(fleet));
+			return true;
 		} catch (err: any) {
-			setError(
-				err.response?.data?.message ||
-				"Login failed. Please check your credentials."
-			);
+			const status = err.response?.status;
+			if (status === 403) {
+				setError("User is not verified.");
+			} else if (status === 401) {
+				setError("Login failed. Please check your credentials.");
+			}
 			setToken(null);
 			setUser(null);
 			localStorage.removeItem("token");
-			localStorage.removeItem("user");
-			return false; // Login failed
+			localStorage.removeItem("user"); // ✅ fix here
+			return false;
 		} finally {
 			setLoading(false);
 		}
@@ -87,9 +91,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 		setToken(null);
 		setUser(null);
 		localStorage.removeItem("token");
-		localStorage.removeItem("user");
+		localStorage.removeItem("user"); // ✅ fix here
 		window.location.href = "/";
 	};
+
 
 	return (
 		<UserContext.Provider value={{ user, token, login, signOut, loading, error }}>

@@ -19,10 +19,15 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
+import { useUser } from "@/context/userContext";
 
 
 export default function VehicleManagement() {
-  const liveVehicles = useVehicleWebSocket("ws://192.168.1.7:8000/ws/vehicles/all");
+  const { user } = useUser();  // 👈 get logged in fleet
+  const fleetId = user?.id;    // or user?.fleet_id depending on backend
+  const liveVehicles = useVehicleWebSocket(
+    fleetId ? `ws://192.168.1.7:8000/ws/vehicles/all/${fleetId}` : null
+  );
   const [searchValue, setSearchValue] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Any");
   const [editDialogOpen, setEditDialogOpen] = useState(false);

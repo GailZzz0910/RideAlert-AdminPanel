@@ -18,11 +18,13 @@ import {
   Car, 
   Settings,
 } from "lucide-react";
+import { useUser } from "@/context/userContext";
 
 // Memoized Logo component to prevent unnecessary re-renders
 const Logo = React.memo(() => {
   const { isOpen, isMobile } = useSidebarContext();
   const showFullLogo = isOpen || isMobile;
+  const { user } = useUser(); // 👈 pull fleet/company info
   
   return (
     <div className="flex items-center space-x-3">
@@ -38,8 +40,12 @@ const Logo = React.memo(() => {
             transition={{ duration: 0.2 }}
             className="flex flex-col overflow-hidden"
           >
-            <span className="font-bold text-sidebar-foreground whitespace-nowrap">Ride Alert</span>
-            <span className="text-xs text-gray-400 whitespace-nowrap">Vehicle Management</span>
+            <span className="font-bold text-sidebar-foreground whitespace-nowrap">
+              {user?.company_name || "Ride Alert"}
+            </span>
+            <span className="text-xs text-gray-400 whitespace-nowrap">
+              Vehicle Management
+            </span>
           </motion.div>
         )}
       </AnimatePresence>

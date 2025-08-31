@@ -15,7 +15,12 @@ const VehicleContext = createContext<VehicleCounts>({
     unavailable: 0,
 });
 
-export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface VehicleProviderProps {
+    children: React.ReactNode;
+    fleetId: string; // 👈 pass fleet_id dynamically
+}
+
+export const VehicleProvider: React.FC<VehicleProviderProps> = ({ children, fleetId }) => {
     const [counts, setCounts] = useState<VehicleCounts>({
         total: 0,
         available: 0,
@@ -24,10 +29,12 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     useEffect(() => {
-        const ws = new WebSocket(`${wsBaseURL}/ws/vehicle-counts`);
+        if (!fleetId) return; // only connect if we have a fleetId
+
+        const ws = new WebSocket(`${wsBaseURL}/ws/vehicle-counts/${fleetId}`);
 
         ws.onopen = () => {
-            console.log("Connected to vehicle-counts WebSocket");
+            console.log(`Connected to vehicle-counts WebSocket for fleet ${fleetId}`);
         };
 
         ws.onmessage = (event) => {
@@ -45,11 +52,11 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
 
         ws.onclose = () => {
-            console.log("Vehicle-counts WebSocket closed");
+            console.log(`Vehicle-counts WebSocket closed for fleet ${fleetId}`);
         };
 
         return () => ws.close();
-    }, []);
+    }, [fleetId]); // reconnect when fleetId changes
 
     return (
         <VehicleContext.Provider value={counts}>

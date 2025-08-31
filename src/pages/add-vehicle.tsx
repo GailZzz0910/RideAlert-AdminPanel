@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import api from "@/utils/api";
+import { useUser } from "@/context/userContext";
 
 const routes = ["Igpit - Cogon", "Cogon - Igpit", "Other Route"];
 const statuses = ["Available", "Unavailable", "In Service", "Maintenance"];
@@ -21,9 +22,15 @@ export default function AddVehicle() {
   const [plate, setPlate] = useState("");
   const [driver, setDriver] = useState("");
   const [capacity, setCapacity] = useState("30"); // string for controlled input
+  const { user } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user?.id) {
+      console.error("No fleet_id found for user");
+      return;
+    }
 
     const payload = {
       location: { latitude: 8.654321, longitude: 124.123456 },
@@ -32,16 +39,15 @@ export default function AddVehicle() {
       available_seats: Number(capacity),
       status: selectedStatus.toLowerCase(),
       route: selectedRoute,
-      driverName: driver, // ✅ camelCase
+      driverName: driver,
       plate,
     };
 
-    console.log("Payload:", payload); // Debugging
-
     try {
-      const res = await api.post("/vehicles/create", payload);
+      const res = await api.post(`/vehicles/create/${user.id}`, payload);
       console.log("Vehicle added:", res.data);
-      // Optionally reset form
+
+      // Reset form
       setPlate("");
       setDriver("");
       setCapacity("30");
