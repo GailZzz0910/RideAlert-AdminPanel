@@ -1,10 +1,10 @@
-import HeroSection from "../components/ui/hero-section";
-import FeaturesSectionDemo from "../components/features-section";
-import Footer from "../components/ui/footer";
-import NavBar from "../components/ui/nav-bar";
+import HeroSection from "../../components/ui/hero-section";
+import FeaturesSectionDemo from "../../components/features-section";
+import Footer from "../../components/ui/footer";
+import NavBar from "../../components/ui/nav-bar";
 
-import { ContainerScroll } from "../components/ui/container-scroll-animation";
-import carDashboardImg from "../assets/home-demo.png";
+import { ContainerScroll } from "../../components/ui/container-scroll-animation";
+import carDashboardImg from "../../assets/home-demo.png";
 
 
 export default function Landing() {

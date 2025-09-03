@@ -95,6 +95,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                 <Button type="submit" className="w-full bg-white/90 text-black cursor-pointer hover:bg-white/80" disabled={loading}>
                   {loading ? "Logging in..." : "Login"}
                 </Button>
+                <div className="text-center">
+                  <span className="text-white text-sm">Don&apos;t have an account? </span>
+                  <a href="/register" className="text-blue-400 hover:underline text-sm">Register</a>
+                </div>
               </div>
             </div>
           </form>

@@ -29,6 +29,7 @@
     "cobe": "^0.6.4",
     "dotenv": "^17.2.1",
     "google-maps": "^4.3.3",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.541.0",
     "motion": "^12.23.12",
     "react": "^19.1.1",

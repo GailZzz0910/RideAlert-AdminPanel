@@ -26,7 +26,7 @@ export default function VehicleManagement() {
   const { user } = useUser();  // 👈 get logged in fleet
   const fleetId = user?.id;    // or user?.fleet_id depending on backend
   const liveVehicles = useVehicleWebSocket(
-    fleetId ? `ws://192.168.1.7:8000/ws/vehicles/all/${fleetId}` : null
+    fleetId ? `ws://192.168.1.50:8000/ws/vehicles/all/${fleetId}` : null
   );
   const [searchValue, setSearchValue] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Any");

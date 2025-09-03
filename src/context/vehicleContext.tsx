@@ -17,7 +17,7 @@ const VehicleContext = createContext<VehicleCounts>({
 
 interface VehicleProviderProps {
     children: React.ReactNode;
-    fleetId: string; // 👈 pass fleet_id dynamically
+    fleetId: string; 
 }
 
 export const VehicleProvider: React.FC<VehicleProviderProps> = ({ children, fleetId }) => {
