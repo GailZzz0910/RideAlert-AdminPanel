@@ -60,11 +60,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 			const res = await api.post("/fleets/login", { email, password });
 			const { access_token, fleet } = res.data;
 
-			if (fleet.role !== "admin") {
+			if (!["admin", "superadmin"].includes(fleet.role)) {
 				setError("User account is prohibited from logging in.");
 				return false;
 			}
-
+			
 			setToken(access_token);
 			setUser(fleet);
 			localStorage.setItem("token", access_token);
