@@ -1,5 +1,5 @@
 import HeroSection from "../../components/ui/hero-section";
-import FeaturesSectionDemo from "../../components/features-section";
+// import FeaturesSectionDemo from "../../components/features-section";
 import Footer from "../../components/ui/footer";
 import NavBar from "../../components/ui/nav-bar";
 
@@ -47,7 +47,7 @@ export default function Landing() {
               </ContainerScroll>
             </div>
           </section>
-          <FeaturesSectionDemo />
+          {/* <FeaturesSectionDemo /> */}
         </main>
         <Footer />
       </div>

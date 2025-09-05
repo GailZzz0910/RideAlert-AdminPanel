@@ -25,28 +25,7 @@ import { useFleetCounter } from "./utils/fleetCounter";
 import { useUserCounter } from "./utils/userCounter";
 import { useVehicleCounter } from "./utils/vehicleCounter";
 import { useAllFleets } from "./utils/useAllFleets";
-
-// Mock data for super admin dashboard - replace with real API calls later
-const mockSuperAdminData = {
-  totalCompanies: 15,
-  totalUsers: 127,
-  totalVehicles: 380,
-  activeVehicles: 342,
-  systemHealth: 98.5,
-  recentActivity: [
-    { id: 1, company: "City Transport Co.", action: "Added 5 new vehicles", time: "2 hours ago", type: "vehicle" },
-    { id: 2, company: "Metro Bus Lines", action: "New user registered", time: "4 hours ago", type: "user" },
-    { id: 3, company: "Urban Mobility Inc.", action: "System maintenance completed", time: "6 hours ago", type: "system" },
-    { id: 4, company: "Express Transit", action: "Fleet capacity increased", time: "1 day ago", type: "fleet" },
-  ],
-  companies: [
-    { id: 1, name: "City Transport Co.", vehicles: 45, users: 12, status: "active", plan: "Premium" },
-    { id: 2, name: "Metro Bus Lines", vehicles: 32, users: 8, status: "active", plan: "Standard" },
-    { id: 3, name: "Urban Mobility Inc.", vehicles: 28, users: 6, status: "active", plan: "Premium" },
-    { id: 4, name: "Express Transit", vehicles: 67, users: 18, status: "active", plan: "Enterprise" },
-    { id: 5, name: "Quick Ride Services", vehicles: 23, users: 5, status: "inactive", plan: "Basic" },
-  ]
-};
+import { useUser } from "@/context/userContext";
 
 export default function SuperAdminDashboard() {
   const [searchValue, setSearchValue] = useState("");
@@ -54,12 +33,19 @@ export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  //get user
+  const { user, token } = useUser();
+
+  useEffect(() => {
+    console.log("Current user:", user);
+    console.log("Current token:", token);
+  }, [user, token]);
+
   //counter
   const fleetCount = useFleetCounter();
   const userCount = useUserCounter();
   const vehicleCount = useVehicleCounter();
   const fleets = useAllFleets();
-
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);
@@ -76,16 +62,28 @@ export default function SuperAdminDashboard() {
     return matchesSearch && matchesFilter;
   });
 
-  const getStatusColor = (status: string) => {
-    return status === "active" ? "bg-green-500" : "bg-gray-500";
+  // Fixed status color function to handle boolean values
+  const getStatusColor = (isActive: boolean) => {
+    return isActive ? "bg-green-500" : "bg-gray-500";
   };
 
   const getPlanColor = (plan: string) => {
-    switch (plan) {
-      case "Enterprise": return "bg-purple-500";
-      case "Premium": return "bg-blue-500";
-      case "Standard": return "bg-orange-500";
+    switch (plan?.toLowerCase()) {
+      case "enterprise": return "bg-purple-500";
+      case "premium": return "bg-blue-500";
+      case "standard": return "bg-orange-500";
+      case "basic": return "bg-gray-500";
       default: return "bg-gray-500";
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role?.toLowerCase()) {
+      case "admin": return "text-green-400";
+      case "superadmin": return "text-purple-400";
+      case "user": return "text-blue-400";
+      case "unverified": return "text-yellow-400";
+      default: return "text-gray-400";
     }
   };
 
@@ -110,13 +108,6 @@ export default function SuperAdminDashboard() {
             label="Total Vehicles"
             count={vehicleCount}
             icon={<Car className="text-primary w-6 h-6" />}
-          />
-          <DashboardCountCard
-            label="System Health"
-            count={mockSuperAdminData.systemHealth}
-            icon={<Activity className="text-primary w-6 h-6" />}
-            percent={mockSuperAdminData.systemHealth}
-            subtext="%"
           />
         </div>
 
@@ -174,52 +165,58 @@ export default function SuperAdminDashboard() {
             {/* Companies List */}
             {loading ? (
               <div className="flex items-center justify-center h-[300px] w-full">
-                <div className="w-16 h-16 border-5 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : (
               <div className="space-y-3">
-                {filteredCompanies.map((company) => (
-                  <Card
-                    key={company.id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => navigate(`/super-admin/company/${company.id}`)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="flex items-center space-x-2">
-                            <span className={`inline-block w-3 h-3 rounded-full ${getStatusColor(company.is_active)}`} />
-                            <h3 className="font-semibold text-foreground">{company.company_name}</h3>
+                {filteredCompanies.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+                    <Building className="w-12 h-12 mb-2 opacity-50" />
+                    <p>No companies found</p>
+                    <p className="text-sm">
+                      {searchValue 
+                        ? `No companies match "${searchValue}"`
+                        : "No companies registered yet"
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  filteredCompanies.map((company) => (
+                    <Card
+                      key={company._id || company.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => {
+                        const companyId = company._id || company.id;
+                        console.log("Navigating to company ID:", companyId);
+                        navigate(`/super-admin/company/${companyId}`);
+                      }}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center space-x-2">
+                              <span className={`inline-block w-3 h-3 rounded-full ${getStatusColor(company.is_active)}`} />
+                              <h3 className="font-semibold text-foreground">{company.company_name}</h3>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                            <span className={`${getRoleColor(company.role)} text-md font-semibold`}>
+                              {company.role || "N/A"}
+                            </span>
+                            <span>{company.max_vehicles || 0} vehicles max</span>
+                            <span className={`px-2 py-1 rounded text-white text-xs ${getPlanColor(company.subscription_plan || 'Basic')}`}>
+                              {company.subscription_plan || 'Basic'}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span
-                            className={
-                              company.role === "admin"
-                                ? "text-green-400"
-                                : company.role === "user"
-                                  ? "text-blue-400"
-                                  : "text-gray-400" + " text-md font-semibold"
-                            }
-                          >
-                            {company.role || "N/A"}
-                          </span>
-                          <span>{company.max_vehicles || 0} vehicles max</span>
-                          <span className={`px-2 py-1 rounded text-white text-xs ${getPlanColor(company.subscription_plan || 'Basic')}`}>
-                            {company.subscription_plan || 'Basic'}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </div>
             )}
           </div>
-
-
         </div>
-
       </div>
     </ScrollArea>
   );
