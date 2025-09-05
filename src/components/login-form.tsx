@@ -25,11 +25,17 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const success = await login(email, password);
+    
     if (success) {
-      navigate("/dashboard");
+      // Get the user role and redirect accordingly
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      if (userData.role === "superadmin") {
+        navigate("/super-admin");
+      } else if (userData.role === "admin") {
+        navigate("/dashboard");
+      }
     }
     // If login fails, the error will be displayed via the error state from context
-    // and the form will remain open for the user to try again
   };
 
   return (
