@@ -1,12 +1,12 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DashboardCountCard } from "@/components/dashboard-count-card";
-import { 
-  Building, 
-  Users, 
-  Car, 
-  Shield, 
-  Search, 
-  ChevronDown, 
+import {
+  Building,
+  Users,
+  Car,
+  Shield,
+  Search,
+  ChevronDown,
   ListFilter,
   TrendingUp,
   AlertTriangle,
@@ -18,9 +18,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
+import { useFleetCounter } from "./utils/fleetCounter";
+import { useUserCounter } from "./utils/userCounter";
+import { useVehicleCounter } from "./utils/vehicleCounter";
+import { useAllFleets } from "./utils/useAllFleets";
 
 // Mock data for super admin dashboard - replace with real API calls later
 const mockSuperAdminData = {
@@ -50,18 +54,25 @@ export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  //counter
+  const fleetCount = useFleetCounter();
+  const userCount = useUserCounter();
+  const vehicleCount = useVehicleCounter();
+  const fleets = useAllFleets();
+
+
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);
     return () => clearTimeout(timer);
   }, []);
 
   // Filter companies based on search and status
-  const filteredCompanies = mockSuperAdminData.companies.filter((company) => {
-    const matchesSearch = company.name.toLowerCase().includes(searchValue.toLowerCase());
-    const matchesFilter = 
+  const filteredCompanies = fleets.filter((company) => {
+    const matchesSearch = company.company_name.toLowerCase().includes(searchValue.toLowerCase());
+    const matchesFilter =
       selectedFilter === "All Companies" ||
-      selectedFilter === "Active" && company.status === "active" ||
-      selectedFilter === "Inactive" && company.status === "inactive";
+      (selectedFilter === "Active" && company.is_active) ||
+      (selectedFilter === "Inactive" && !company.is_active);
     return matchesSearch && matchesFilter;
   });
 
@@ -84,36 +95,33 @@ export default function SuperAdminDashboard() {
 
         {/* System Overview Cards */}
         <div className="grid w-full gap-5 mb-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <DashboardCountCard 
-            label="Total Companies" 
-            count={mockSuperAdminData.totalCompanies} 
-            icon={<Building className="text-primary w-6 h-6" />} 
-            subtext={""} 
+          <DashboardCountCard
+            label="Total Companies"
+            count={fleetCount}
+            icon={<Building className="text-primary w-6 h-6" />}
+            subtext={""}
           />
-          <DashboardCountCard 
-            label="Total Users" 
-            count={mockSuperAdminData.totalUsers} 
-            icon={<Users className="text-primary w-6 h-6" />} 
-            percent={85} 
+          <DashboardCountCard
+            label="Total Users"
+            count={userCount}
+            icon={<Users className="text-primary w-6 h-6" />}
           />
-          <DashboardCountCard 
-            label="Total Vehicles" 
-            count={mockSuperAdminData.totalVehicles} 
-            icon={<Car className="text-primary w-6 h-6" />} 
-            percent={90} 
+          <DashboardCountCard
+            label="Total Vehicles"
+            count={vehicleCount}
+            icon={<Car className="text-primary w-6 h-6" />}
           />
-          <DashboardCountCard 
-            label="System Health" 
-            count={mockSuperAdminData.systemHealth} 
-            icon={<Activity className="text-primary w-6 h-6" />} 
-            percent={mockSuperAdminData.systemHealth} 
-            subtext="%" 
+          <DashboardCountCard
+            label="System Health"
+            count={mockSuperAdminData.systemHealth}
+            icon={<Activity className="text-primary w-6 h-6" />}
+            percent={mockSuperAdminData.systemHealth}
+            subtext="%"
           />
         </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
           {/* Companies Section */}
           <div className="lg:col-span-2 space-y-6">
             {/* Header with title and count */}
@@ -121,7 +129,7 @@ export default function SuperAdminDashboard() {
               <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
                 Companies
                 <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                  {mockSuperAdminData.totalCompanies}
+                  {fleetCount}
                 </span>
               </h2>
             </div>
@@ -171,8 +179,8 @@ export default function SuperAdminDashboard() {
             ) : (
               <div className="space-y-3">
                 {filteredCompanies.map((company) => (
-                  <Card 
-                    key={company.id} 
+                  <Card
+                    key={company.id}
                     className="hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => navigate(`/super-admin/company/${company.id}`)}
                   >
@@ -180,15 +188,25 @@ export default function SuperAdminDashboard() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className="flex items-center space-x-2">
-                            <span className={`inline-block w-3 h-3 rounded-full ${getStatusColor(company.status)}`} />
-                            <h3 className="font-semibold text-foreground">{company.name}</h3>
+                            <span className={`inline-block w-3 h-3 rounded-full ${getStatusColor(company.is_active)}`} />
+                            <h3 className="font-semibold text-foreground">{company.company_name}</h3>
                           </div>
                         </div>
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span>{company.vehicles} vehicles</span>
-                          <span>{company.users} users</span>
-                          <span className={`px-2 py-1 rounded text-white text-xs ${getPlanColor(company.plan)}`}>
-                            {company.plan}
+                          <span
+                            className={
+                              company.role === "admin"
+                                ? "text-green-400"
+                                : company.role === "user"
+                                  ? "text-blue-400"
+                                  : "text-gray-400" + " text-md font-semibold"
+                            }
+                          >
+                            {company.role || "N/A"}
+                          </span>
+                          <span>{company.max_vehicles || 0} vehicles</span>
+                          <span className={`px-2 py-1 rounded text-white text-xs ${getPlanColor(company.subscription_plan || 'Basic')}`}>
+                            {company.subscription_plan || 'Basic'}
                           </span>
                         </div>
                       </div>
