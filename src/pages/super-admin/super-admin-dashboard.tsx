@@ -204,7 +204,7 @@ export default function SuperAdminDashboard() {
                           >
                             {company.role || "N/A"}
                           </span>
-                          <span>{company.max_vehicles || 0} vehicles</span>
+                          <span>{company.max_vehicles || 0} vehicles max</span>
                           <span className={`px-2 py-1 rounded text-white text-xs ${getPlanColor(company.subscription_plan || 'Basic')}`}>
                             {company.subscription_plan || 'Basic'}
                           </span>
