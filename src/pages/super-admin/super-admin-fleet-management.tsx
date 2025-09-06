@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useUser } from "@/context/userContext";
 
 const plans = {
   basic: { name: "Basic", color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300" },
@@ -44,6 +45,7 @@ export default function SuperAdminFleetManagement() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
   const [fleets, setFleets] = useState<any[]>([]);
+  const { token } = useUser();
 
   // Connect to the websocket
   useEffect(() => {
@@ -155,14 +157,51 @@ export default function SuperAdminFleetManagement() {
     return defaultPlan;
   };
 
-  const handleApprove = (id: number) => {
-    // TODO: Implement approval logic
-    console.log("Approving registration:", id);
+  const handleApprove = async (fleetId: string) => {
+    if (!fleetId) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/fleets/${fleetId}/approve`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error("Failed to approve fleet");
+
+      const data = await response.json();
+      console.log("Approved:", data);
+      alert("Fleet approved successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Error approving fleet");
+    }
   };
 
-  const handleReject = (id: number) => {
-    // TODO: Implement rejection logic
-    console.log("Rejecting registration:", id);
+
+  const handleReject = async (fleetId: string) => {
+    if (!fleetId) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/fleets/${fleetId}/reject`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error("Failed to approve fleet");
+
+      const data = await response.json();
+      console.log("Approved:", data);
+      alert("Fleet approved successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Error approving fleet");
+    }
   };
 
   const formatDate = (dateString: string) => {
