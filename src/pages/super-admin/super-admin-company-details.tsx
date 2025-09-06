@@ -32,6 +32,34 @@ export default function SuperAdminCompanyDetails() {
   const fleetId = company?.fleet_id || companyId; // adjust based on your schema
   const { vehicles, loading: vehiclesLoading, error: vehiclesError } = useFleetVehicles(fleetId);
 
+  const handleDeleteCompany = async () => {
+    const id = company?._id || companyId; // fallback to companyId
+    if (!id) return;
+
+    if (!confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/fleets/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Company deleted:", data);
+        navigate("/super-admin"); // redirect back
+      } else if (response.status === 404) {
+        alert("Company not found");
+      } else {
+        throw new Error(`Delete failed: ${response.status}`);
+      }
+    } catch (err) {
+      console.error("Error deleting company:", err);
+      alert("Failed to delete company. Please try again.");
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -417,7 +445,11 @@ export default function SuperAdminCompanyDetails() {
             <Settings className="w-4 h-4 mr-2" />
             Manage Settings
           </Button>
-          <Button variant="destructive" className="cursor-pointer">
+          <Button
+            variant="destructive"
+            className="cursor-pointer"
+            onClick={handleDeleteCompany}
+          >
             <Trash2 className="w-4 h-4 mr-2" />
             Delete Company
           </Button>
