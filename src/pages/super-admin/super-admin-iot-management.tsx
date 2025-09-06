@@ -29,85 +29,6 @@ import {
 } from "@/components/ui/dialog";
 import AddIOTDeviceDialog from "@/components/add-iot-device-dialog";
 
-// Mock data for IOT devices - replace with real API calls later
-const mockIOTDevices = [
-  {
-    id: 1,
-    objectId: "IOT001",
-    deviceModel: "GPS-Tracker-Pro-X1",
-    vehicleId: 1,
-    vehiclePlate: "NYC-001",
-    companyName: "City Transport Co.",
-    isActive: true,
-    status: "online",
-    lastUpdate: "2024-09-02T14:30:00Z",
-    batteryLevel: 85,
-    signalStrength: 95,
-    location: { lat: 40.7128, lng: -74.0060 },
-    assignedDate: "2024-01-15T10:00:00Z"
-  },
-  {
-    id: 2,
-    objectId: "IOT002",
-    deviceModel: "GPS-Tracker-Pro-X1",
-    vehicleId: 2,
-    vehiclePlate: "NYC-002",
-    companyName: "City Transport Co.",
-    isActive: true,
-    status: "offline",
-    lastUpdate: "2024-09-02T12:15:00Z",
-    batteryLevel: 22,
-    signalStrength: 0,
-    location: { lat: 40.7589, lng: -73.9851 },
-    assignedDate: "2024-01-20T09:30:00Z"
-  },
-  {
-    id: 3,
-    objectId: "IOT003",
-    deviceModel: "GPS-Tracker-Lite-V2",
-    vehicleId: null,
-    vehiclePlate: null,
-    companyName: null,
-    isActive: false,
-    status: "unassigned",
-    lastUpdate: "2024-08-28T16:45:00Z",
-    batteryLevel: 100,
-    signalStrength: 0,
-    location: null,
-    assignedDate: null
-  },
-  {
-    id: 4,
-    objectId: "IOT004",
-    deviceModel: "GPS-Tracker-Pro-X1",
-    vehicleId: 15,
-    vehiclePlate: "MTR-015",
-    companyName: "Metro Bus Lines",
-    isActive: true,
-    status: "online",
-    lastUpdate: "2024-09-02T14:28:00Z",
-    batteryLevel: 67,
-    signalStrength: 88,
-    location: { lat: 40.7831, lng: -73.9712 },
-    assignedDate: "2024-02-10T14:20:00Z"
-  },
-  {
-    id: 5,
-    objectId: "IOT005",
-    deviceModel: "GPS-Tracker-Lite-V2",
-    vehicleId: 28,
-    vehiclePlate: "URB-028",
-    companyName: "Urban Mobility Inc.",
-    isActive: true,
-    status: "maintenance",
-    lastUpdate: "2024-09-01T18:00:00Z",
-    batteryLevel: 45,
-    signalStrength: 75,
-    location: { lat: 40.7282, lng: -73.7949 },
-    assignedDate: "2024-03-05T11:15:00Z"
-  }
-];
-
 export default function SuperAdminIOTManagement() {
   const [searchValue, setSearchValue] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -161,7 +82,7 @@ export default function SuperAdminIOTManagement() {
         deviceModel: newDevice.device_model || "Unknown",
         vehicleId: newDevice.vehicle_id !== "None" ? newDevice.vehicle_id : null,
         vehiclePlate:
-          newDevice.vehicle_id !== "None" ? newDevice.vehicle_id : null,
+          newDevice.company_name !== "None" ? newDevice.company_name : null,
         companyName: null,
         isActive: newDevice.is_active === "active",
         status:
@@ -509,15 +430,8 @@ export default function SuperAdminIOTManagement() {
                                       <div className="flex items-center gap-3">
                                         <Building className="w-4 h-4 text-muted-foreground" />
                                         <div>
-                                          <span className="text-sm text-muted-foreground">Vehicle Plate</span>
+                                          <span className="text-sm text-muted-foreground">Company Assigned</span>
                                           <p className="font-medium">{device.vehiclePlate}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <Building className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Company</span>
-                                          <p className="font-medium">{device.companyName}</p>
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-3">

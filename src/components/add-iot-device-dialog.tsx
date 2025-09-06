@@ -45,6 +45,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
   const [loading, setLoading] = useState(true);
   const [vehicleLoading, setVehicleLoading] = useState(false); // New state for vehicle loading
   const vehicleCache = useRef<Map<string, any[]>>(new Map()); // Cache for vehicle data
+  const selectedCompanyObj = companies.find(c => c.id === formData.selectedCompany);
 
   // Debounce function to limit rapid WebSocket/REST calls
   const debounce = (func: (...args: any[]) => void, wait: number) => {
@@ -317,7 +318,8 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
         const payload = {
           device_name: formData.objectId,
           device_model: formData.deviceModel,
-          vehicle_id: formData.assignmentType === "assigned" ? formData.selectedVehicle : "None",
+          vehicle_id: formData.assignmentType === "assigned" ? formData.selectedVehicle : null,
+          company_name: selectedCompanyObj ? selectedCompanyObj.name : null,
           is_active: formData.assignmentType === "assigned" ? "active" : "inactive",
           notes: formData.notes,
         };
