@@ -37,39 +37,56 @@ export default function SuperAdminIOTManagement() {
 
   // Fetch IoT devices from backend
   useEffect(() => {
-    const fetchDevices = async () => {
+    const ws = new WebSocket("ws://localhost:8000/iot_devices/ws/all");
+
+    ws.onopen = () => {
+      console.log("Connected to IoT WebSocket");
+    };
+
+    ws.onmessage = (event) => {
       try {
-        const res = await fetch("http://localhost:8000/iot_devices/all");
-        const data = await res.json();
+        const data = JSON.parse(event.data);
+        if (data.devices) {
+          const mapped = data.devices.map((d: any, idx: number) => ({
+            id: idx + 1,
+            objectId: d.device_name,
+            deviceModel: d.device_model || "Unknown",
+            vehicleId: d.vehicle_id !== "None" ? d.vehicle_id : null,
+            vehiclePlate: d.vehicle_id !== "None" ? d.vehicle_id : null,
+            companyName: d.company_name || null,
+            isActive: d.is_active === "active",
+            status:
+              d.is_active === "active"
+                ? "online"
+                : d.is_active === "maintenance"
+                  ? "maintenance"
+                  : "offline",
+            lastUpdate: d.last_update || d.createdAt,
+            batteryLevel: 100,
+            signalStrength: d.is_active === "active" ? 90 : 0,
+            location: null,
+            assignedDate: d.createdAt,
+          }));
 
-        const mapped = data.map((d: any, idx: number) => ({
-          id: idx + 1,
-          objectId: d.device_name, // 👈 use device_name instead of device_id
-          deviceModel: d.device_model || "Unknown",
-          vehicleId: d.vehicle_id !== "None" ? d.vehicle_id : null,
-          vehiclePlate: d.vehicle_id !== "None" ? d.vehicle_id : null,
-          companyName: null,
-          isActive: d.is_active === "active",
-          status:
-            d.is_active === "active"
-              ? "online"
-              : d.is_active === "maintenance"
-                ? "maintenance"
-                : "offline",
-          lastUpdate: d.last_update || d.createdAt,
-          batteryLevel: 100, // placeholder until backend supports it
-          signalStrength: d.is_active === "active" ? 90 : 0, // placeholder
-          location: null,
-          assignedDate: d.createdAt,
-        }));
-
-        setDevices(mapped);
+          setDevices(mapped);
+        }
       } catch (err) {
-        console.error("Failed to fetch devices:", err);
+        console.error("Error parsing WebSocket message:", err);
       }
     };
 
-    fetchDevices();
+    ws.onerror = (err) => {
+      console.error("WebSocket error:", err);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket closed");
+    };
+
+    // cleanup when component unmounts
+    return () => {
+      ws.close();
+    };
   }, []);
 
   const handleAddDevice = (newDevice: any) => {
@@ -182,7 +199,7 @@ export default function SuperAdminIOTManagement() {
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
   };
-  
+
   return (
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
@@ -329,8 +346,7 @@ export default function SuperAdminIOTManagement() {
                       <td className="py-4 px-4">
                         {device.vehicleId ? (
                           <div className="flex flex-col">
-                            <span className="font-medium text-foreground">{device.vehiclePlate}</span>
-                            <span className="text-xs text-muted-foreground">{device.companyName}</span>
+                            <span className="font-medium text-foreground">{device.companyName}</span>
                           </div>
                         ) : (
                           <Badge variant="outline" className="text-gray-600">
@@ -431,7 +447,7 @@ export default function SuperAdminIOTManagement() {
                                         <Building className="w-4 h-4 text-muted-foreground" />
                                         <div>
                                           <span className="text-sm text-muted-foreground">Company Assigned</span>
-                                          <p className="font-medium">{device.vehiclePlate}</p>
+                                          <p className="font-medium">{device.companyName}</p>
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-3">
