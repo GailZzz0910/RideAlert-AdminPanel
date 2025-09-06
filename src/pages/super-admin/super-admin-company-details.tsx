@@ -2,13 +2,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Building, 
-  Car, 
+import {
+  Building,
+  Car,
   ArrowLeft,
-  Mail, 
-  Phone, 
-  MapPin, 
+  Mail,
+  Phone,
+  MapPin,
   Calendar,
   Edit,
   Trash2,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useFleetVehicles } from "./utils/useFleetVehicle";
 
 export default function SuperAdminCompanyDetails() {
   const { companyId } = useParams();
@@ -27,6 +28,9 @@ export default function SuperAdminCompanyDetails() {
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const fleetId = company?.fleet_id || companyId; // adjust based on your schema
+  const { vehicles, loading: vehiclesLoading, error: vehiclesError } = useFleetVehicles(fleetId);
 
   useEffect(() => {
     let isMounted = true;
@@ -69,7 +73,7 @@ export default function SuperAdminCompanyDetails() {
     // WebSocket fallback function
     const tryWebSocket = () => {
       let ws: WebSocket | null = null;
-      
+
       try {
         ws = new WebSocket(`ws://localhost:8000/fleets/${companyId}/ws`);
 
@@ -84,7 +88,7 @@ export default function SuperAdminCompanyDetails() {
           try {
             const data = JSON.parse(event.data);
             console.log("Received company data via WebSocket:", data);
-            
+
             if (data.error) {
               setError(data.error);
               setLoading(false);
@@ -139,7 +143,7 @@ export default function SuperAdminCompanyDetails() {
   const getStatusColor = (status: boolean | string) => {
     // Handle both boolean and string status
     const isActive = typeof status === 'boolean' ? status : status === 'active';
-    return isActive 
+    return isActive
       ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
       : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
   };
@@ -210,12 +214,12 @@ export default function SuperAdminCompanyDetails() {
   return (
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => navigate("/super-admin")}
               className="cursor-pointer"
             >
@@ -293,11 +297,11 @@ export default function SuperAdminCompanyDetails() {
                 <div>
                   <p className="text-sm text-muted-foreground">Created</p>
                   <p className="text-lg font-bold text-foreground">
-                    {company.created_at 
-                      ? new Date(company.created_at).toLocaleDateString("en-US", { 
-                          month: "short", 
-                          year: "numeric" 
-                        })
+                    {company.created_at
+                      ? new Date(company.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        year: "numeric"
+                      })
                       : "N/A"
                     }
                   </p>
@@ -309,7 +313,7 @@ export default function SuperAdminCompanyDetails() {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Company Information */}
           <Card>
             <CardHeader>
@@ -358,7 +362,7 @@ export default function SuperAdminCompanyDetails() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Car className="w-5 h-5" />
-                  Fleet Vehicles (0)
+                  Fleet Vehicles ({vehicles.length})
                 </CardTitle>
                 <Button size="sm" className="cursor-pointer">
                   <Plus className="w-4 h-4 mr-2" />
@@ -367,11 +371,38 @@ export default function SuperAdminCompanyDetails() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
-                <Car className="w-12 h-12 mb-2 opacity-50" />
-                <p>No vehicles registered yet</p>
-                <p className="text-sm">Vehicles will appear here once added to the fleet</p>
-              </div>
+              {vehiclesLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : vehicles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+                  <Car className="w-12 h-12 mb-2 opacity-50" />
+                  <p>No vehicles registered yet</p>
+                  <p className="text-sm">Vehicles will appear here once added</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {vehicles.map((vehicle) => (
+                    <Card key={vehicle.id} className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold">{vehicle.plate}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Driver: {vehicle.driverName || "N/A"}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant="secondary">{vehicle.status}</Badge>
+                          <Badge variant="outline">
+                            {vehicle.available_seats} seats
+                          </Badge>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
