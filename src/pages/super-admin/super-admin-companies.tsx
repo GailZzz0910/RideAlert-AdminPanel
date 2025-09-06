@@ -86,7 +86,7 @@
 //   return (
 //     <ScrollArea className="h-screen w-full">
 //       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
-        
+
 //         {/* Header */}
 //         <div className="flex items-center justify-between">
 //           <h1 className="text-2xl font-bold text-foreground">Company Management</h1>
@@ -202,6 +202,33 @@ export default function CompanyManagement() {
   const [searchValue, setSearchValue] = useState("");
   const fleets = useAllFleetCompanies();
 
+  const handleDeleteCompany = async (companyId: string) => {
+    if (!confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/fleets/${companyId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        console.log("Company deleted successfully");
+        // Refresh list by filtering it locally
+        // (since useAllFleetCompanies probably comes from websocket or hook)
+        // if it’s websocket-driven, the broadcast will update automatically.
+      } else if (response.status === 404) {
+        alert("Company not found");
+      } else {
+        throw new Error(`Delete failed: ${response.status}`);
+      }
+    } catch (err) {
+      console.error("Error deleting company:", err);
+      alert("Failed to delete company. Please try again.");
+    }
+  };
+
+
   const filteredCompanies = fleets.filter((company: any) =>
     company.name?.toLowerCase().includes(searchValue.toLowerCase()) ||
     company.contactEmail?.toLowerCase().includes(searchValue.toLowerCase())
@@ -259,7 +286,10 @@ export default function CompanyManagement() {
                     <button className="p-1 hover:bg-muted rounded">
                       <Edit className="w-4 h-4 text-muted-foreground" />
                     </button>
-                    <button className="p-1 hover:bg-muted rounded">
+                    <button
+                      className="p-1 hover:bg-muted rounded"
+                      onClick={() => handleDeleteCompany(company._id || company.id)}
+                    >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </button>
                   </div>
