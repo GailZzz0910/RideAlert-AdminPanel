@@ -202,6 +202,11 @@ export default function CompanyManagement() {
   const [searchValue, setSearchValue] = useState("");
   const fleets = useAllFleetCompanies();
 
+  const getCompanyKey = (company: any, index: number) => {
+    return company._id || company.id || `company-${index}`;
+  };
+
+
   const handleDeleteCompany = async (companyId: string) => {
     if (!confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
       return;
@@ -275,7 +280,7 @@ export default function CompanyManagement() {
         {/* Companies Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCompanies.map((company: any, index: number) => (
-            <Card key={company._id} className="hover:shadow-lg transition-all duration-200">
+            <Card key={getCompanyKey(company, index)} className="hover:shadow-lg transition-all duration-200">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-2">
