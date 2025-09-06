@@ -28,12 +28,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import AddIOTDeviceDialog from "@/components/add-iot-device-dialog";
+import { useUser } from "@/context/userContext";
 
 export default function SuperAdminIOTManagement() {
   const [searchValue, setSearchValue] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedDevice, setSelectedDevice] = useState<any>(null);
   const [devices, setDevices] = useState<any[]>([]);
+
+  const { token } = useUser();
 
   // Fetch IoT devices from backend
   useEffect(() => {
@@ -47,8 +50,8 @@ export default function SuperAdminIOTManagement() {
       try {
         const data = JSON.parse(event.data);
         if (data.devices) {
-          const mapped = data.devices.map((d: any, idx: number) => ({
-            id: idx + 1,
+          const mapped = data.devices.map((d: any) => ({
+            _id: typeof d._id === "string" ? d._id : d._id.$oid || String(d._id),
             objectId: d.device_name,
             deviceModel: d.device_model || "Unknown",
             vehicleId: d.vehicle_id !== "None" ? d.vehicle_id : null,
@@ -67,6 +70,7 @@ export default function SuperAdminIOTManagement() {
             location: null,
             assignedDate: d.createdAt,
           }));
+
 
           setDevices(mapped);
         }
@@ -89,18 +93,45 @@ export default function SuperAdminIOTManagement() {
     };
   }, []);
 
+  const handleDeleteDevice = async (deviceId: string) => {
+    if (!deviceId) return alert("Device ID is missing!");
+    if (!confirm("Are you sure you want to delete this device?")) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/iot_devices/${deviceId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "Failed to delete device");
+      }
+
+      // Remove deleted device from state
+      setDevices(prev => prev.filter(d => d._id !== deviceId));
+      alert("Device deleted successfully");
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+      console.error(err);
+    }
+  };
+
+
   const handleAddDevice = (newDevice: any) => {
     setDevices((prevDevices) => [
       ...prevDevices,
       {
-        ...newDevice,
         id: prevDevices.length + 1,
-        objectId: newDevice.device_name, // 👈 ensure consistency
+        _id: newDevice._id,  // 👈 important
+        objectId: newDevice.device_name,
         deviceModel: newDevice.device_model || "Unknown",
         vehicleId: newDevice.vehicle_id !== "None" ? newDevice.vehicle_id : null,
-        vehiclePlate:
-          newDevice.company_name !== "None" ? newDevice.company_name : null,
-        companyName: null,
+        vehiclePlate: newDevice.vehicle_id !== "None" ? newDevice.vehicle_id : null,
+        companyName: newDevice.company_name || null,
         isActive: newDevice.is_active === "active",
         status:
           newDevice.is_active === "active"
@@ -503,7 +534,12 @@ export default function SuperAdminIOTManagement() {
                             <Edit className="w-4 h-4" />
                           </Button>
 
-                          <Button variant="outline" size="sm" className="cursor-pointer text-red-600 hover:text-red-700">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="cursor-pointer text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteDevice(device._id)}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
