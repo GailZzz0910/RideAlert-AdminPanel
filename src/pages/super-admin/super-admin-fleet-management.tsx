@@ -2,22 +2,22 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  Filter, 
-  Check, 
-  X, 
-  Clock, 
-  Building, 
-  Mail, 
-  Phone, 
-  MapPin, 
+import {
+  Search,
+  Filter,
+  Check,
+  X,
+  Clock,
+  Building,
+  Mail,
+  Phone,
+  MapPin,
   User,
   Eye,
   Calendar,
   AlertCircle
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,108 +27,114 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-// Mock data for pending registrations - replace with real API calls later
-const mockPendingRegistrations = [
-  {
-    id: 1,
-    companyName: "Swift Logistics Ltd.",
-    companyCode: "SWL2024",
-    contactInfo: "Sarah Johnson",
-    email: "sarah.johnson@swiftlogistics.com",
-    phone: "+1 (555) 234-5678",
-    address: "1234 Business Ave, New York, NY 10001",
-    selectedPlan: "premium",
-    planPrice: 79,
-    maxVehicles: 50,
-    submittedAt: "2024-09-01T14:30:00Z",
-    status: "pending",
-    documents: ["business_license.pdf", "insurance_certificate.pdf"]
-  },
-  {
-    id: 2,
-    companyName: "Metro Transport Solutions",
-    companyCode: "MTS2024",
-    contactInfo: "Michael Chen",
-    email: "m.chen@metrotransport.com",
-    phone: "+1 (555) 345-6789",
-    address: "5678 Industrial Rd, Los Angeles, CA 90210",
-    selectedPlan: "enterprise",
-    planPrice: 199,
-    maxVehicles: -1,
-    submittedAt: "2024-09-01T09:15:00Z",
-    status: "pending",
-    documents: ["business_license.pdf", "fleet_inventory.xlsx"]
-  },
-  {
-    id: 3,
-    companyName: "City Bus Corporation",
-    companyCode: "CBC2024",
-    contactInfo: "Jennifer Williams",
-    email: "j.williams@citybus.com",
-    phone: "+1 (555) 456-7890",
-    address: "9012 Transit Center, Chicago, IL 60601",
-    selectedPlan: "basic",
-    planPrice: 29,
-    maxVehicles: 5,
-    submittedAt: "2024-08-31T16:45:00Z",
-    status: "pending",
-    documents: ["business_license.pdf"]
-  },
-  {
-    id: 4,
-    companyName: "Express Fleet Services",
-    companyCode: "EFS2024",
-    contactInfo: "Robert Davis",
-    email: "robert@expressfleet.com",
-    phone: "+1 (555) 567-8901",
-    address: "3456 Commerce St, Houston, TX 77001",
-    selectedPlan: "premium",
-    planPrice: 79,
-    maxVehicles: 50,
-    submittedAt: "2024-08-31T11:20:00Z",
-    status: "approved",
-    approvedAt: "2024-09-01T10:00:00Z",
-    approvedBy: "Admin"
-  },
-  {
-    id: 5,
-    companyName: "Quick Transit Co.",
-    companyCode: "QTC2024",
-    contactInfo: "Lisa Anderson",
-    email: "lisa@quicktransit.com",
-    phone: "+1 (555) 678-9012",
-    address: "7890 Delivery Lane, Phoenix, AZ 85001",
-    selectedPlan: "basic",
-    planPrice: 29,
-    maxVehicles: 5,
-    submittedAt: "2024-08-30T13:30:00Z",
-    status: "rejected",
-    rejectedAt: "2024-09-01T08:30:00Z",
-    rejectedBy: "Admin",
-    rejectionReason: "Incomplete documentation"
-  }
-];
-
 const plans = {
   basic: { name: "Basic", color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300" },
   premium: { name: "Premium", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" },
   enterprise: { name: "Enterprise", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300" }
 };
 
+// Default plan info for when plan data is not available
+const defaultPlan = {
+  name: "Unknown",
+  color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+};
+
 export default function SuperAdminFleetManagement() {
   const [searchValue, setSearchValue] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
+  const [fleets, setFleets] = useState<any[]>([]);
 
-  const filteredRegistrations = mockPendingRegistrations.filter((registration) => {
-    const matchesSearch = 
-      registration.companyName.toLowerCase().includes(searchValue.toLowerCase()) ||
-      registration.contactInfo.toLowerCase().includes(searchValue.toLowerCase()) ||
-      registration.email.toLowerCase().includes(searchValue.toLowerCase()) ||
-      registration.companyCode.toLowerCase().includes(searchValue.toLowerCase());
-    
+  // Connect to the websocket
+  useEffect(() => {
+    const ws = new WebSocket("ws://localhost:8000/fleets/ws/all");
+
+    ws.onopen = () => console.log("Connected to fleets websocket");
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.fleets) setFleets(data.fleets);
+    };
+    ws.onclose = () => console.log("Disconnected from fleets websocket");
+
+    return () => ws.close();
+  }, []);
+
+  // Map fleet role to registration status
+  const getStatusFromRole = (role: string) => {
+    switch (role) {
+      case "unverified": return "pending";
+      case "admin": return "approved";
+      case "rejected": return "rejected";
+      default: return "pending";
+    }
+  };
+
+  // Extract contact info from contact_info array
+  const extractContactInfo = (contactInfoArray: any[]) => {
+    if (!Array.isArray(contactInfoArray) || contactInfoArray.length === 0) {
+      return { contactName: "N/A", email: "N/A", phone: "N/A", address: "N/A" };
+    }
+
+    const contact = contactInfoArray[0]; // Use first contact
+    return {
+      contactName: contact.name || "N/A",
+      email: contact.email || "N/A",
+      phone: contact.phone || "N/A",
+      address: contact.address || "N/A"
+    };
+  };
+
+  // Transform fleet data to match registration format
+  const transformedFleets = fleets.map(fleet => {
+    const contactInfo = extractContactInfo(fleet.contact_info);
+    const planKey = fleet.subscription_plan?.toLowerCase() || "basic";
+
+    // Use your existing plan prices mapping
+    const priceMap: Record<string, number> = {
+      basic: 250,
+      premium: 1000,
+      enterprise: 2500
+    };
+
+    return {
+      id: fleet.id,
+      companyName: fleet.company_name,
+      companyCode: fleet.company_code,
+      contactInfo: contactInfo.contactName,
+      email: contactInfo.email,
+      phone: contactInfo.phone,
+      address: contactInfo.address,
+      selectedPlan: planKey,
+      planPrice: fleet.plan_price ?? priceMap[planKey], // <-- Add this
+      maxVehicles: fleet.max_vehicles,
+      submittedAt: fleet.created_at,
+      status: getStatusFromRole(fleet.role),
+      isActive: fleet.is_active,
+      lastUpdated: fleet.last_updated,
+      approvedAt: fleet.role === "admin" ? fleet.last_updated : null,
+      approvedBy: fleet.role === "admin" ? "Admin" : null,
+      rejectedAt: fleet.role === "rejected" ? fleet.last_updated : null,
+      rejectedBy: fleet.role === "rejected" ? "Admin" : null,
+    };
+  });
+
+  const allRegistrations = transformedFleets;
+
+  // Replace the counts in the summary cards
+  const pendingCount = allRegistrations.filter(f => f.status === "pending").length;
+  const approvedCount = allRegistrations.filter(f => f.status === "approved").length;
+  const rejectedCount = allRegistrations.filter(f => f.status === "rejected").length;
+  const totalCount = allRegistrations.length;
+
+  const filteredRegistrations = allRegistrations.filter((registration) => {
+    const matchesSearch =
+      (registration.companyName?.toLowerCase() || "").includes(searchValue.toLowerCase()) ||
+      (registration.contactInfo?.toLowerCase() || "").includes(searchValue.toLowerCase()) ||
+      (registration.email?.toLowerCase() || "").includes(searchValue.toLowerCase()) ||
+      (registration.companyCode?.toLowerCase() || "").includes(searchValue.toLowerCase());
+
     const matchesFilter = filterStatus === "all" || registration.status === filterStatus;
-    
+
     return matchesSearch && matchesFilter;
   });
 
@@ -139,6 +145,14 @@ export default function SuperAdminFleetManagement() {
       case "rejected": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
       default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
     }
+  };
+
+  // Safe function to get plan info
+  const getPlanInfo = (planKey: string) => {
+    if (planKey && plans[planKey as keyof typeof plans]) {
+      return plans[planKey as keyof typeof plans];
+    }
+    return defaultPlan;
   };
 
   const handleApprove = (id: number) => {
@@ -165,10 +179,10 @@ export default function SuperAdminFleetManagement() {
     const now = new Date();
     const date = new Date(dateString);
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) return "Less than an hour ago";
     if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   };
@@ -176,7 +190,7 @@ export default function SuperAdminFleetManagement() {
   return (
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
-        
+
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -188,7 +202,7 @@ export default function SuperAdminFleetManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Pending</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {mockPendingRegistrations.filter(r => r.status === "pending").length}
+                    {pendingCount}
                   </p>
                 </div>
               </div>
@@ -204,7 +218,7 @@ export default function SuperAdminFleetManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Approved</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {mockPendingRegistrations.filter(r => r.status === "approved").length}
+                    {approvedCount}
                   </p>
                 </div>
               </div>
@@ -220,7 +234,7 @@ export default function SuperAdminFleetManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Rejected</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {mockPendingRegistrations.filter(r => r.status === "rejected").length}
+                    {rejectedCount}
                   </p>
                 </div>
               </div>
@@ -236,7 +250,7 @@ export default function SuperAdminFleetManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {mockPendingRegistrations.length}
+                    {totalCount}
                   </p>
                 </div>
               </div>
@@ -297,227 +311,231 @@ export default function SuperAdminFleetManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRegistrations.map((registration) => (
-                    <tr key={registration.id} className="border-b border-border hover:bg-muted/50">
-                      <td className="py-4 px-4">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-foreground">{registration.companyName}</span>
-                          <span className="text-sm text-muted-foreground">{registration.companyCode}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-foreground">{registration.contactInfo}</span>
-                          <span className="text-xs text-muted-foreground">{registration.email}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex flex-col">
-                          <Badge className={plans[registration.selectedPlan as keyof typeof plans].color}>
-                            {plans[registration.selectedPlan as keyof typeof plans].name}
+                  {filteredRegistrations.map((registration) => {
+                    const planInfo = getPlanInfo(registration.selectedPlan);
+
+                    return (
+                      <tr key={registration.id} className="border-b border-border hover:bg-muted/50">
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{registration.companyName || "N/A"}</span>
+                            <span className="text-sm text-muted-foreground">{registration.companyCode || "N/A"}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm text-foreground">{registration.contactInfo}</span>
+                            <span className="text-xs text-muted-foreground">{registration.email || "N/A"}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <Badge className={planInfo.color}>
+                              {planInfo.name}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground mt-1">
+                              ${registration.planPrice || 0}/month
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <Badge className={getStatusColor(registration.status)}>
+                            {registration.status.charAt(0).toUpperCase() + registration.status.slice(1)}
                           </Badge>
-                          <span className="text-xs text-muted-foreground mt-1">
-                            ${registration.planPrice}/month
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Badge className={getStatusColor(registration.status)}>
-                          {registration.status.charAt(0).toUpperCase() + registration.status.slice(1)}
-                        </Badge>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-foreground">{formatDate(registration.submittedAt)}</span>
-                          <span className="text-xs text-muted-foreground">{formatTimeSince(registration.submittedAt)}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="cursor-pointer"
-                                onClick={() => setSelectedRegistration(registration)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle className="flex items-center gap-2">
-                                  <Building className="w-5 h-5" />
-                                  Registration Details - {registration.companyName}
-                                </DialogTitle>
-                                <DialogDescription>
-                                  Review the complete registration information
-                                </DialogDescription>
-                              </DialogHeader>
-                              
-                              <div className="space-y-6">
-                                {/* Company Information */}
-                                <div>
-                                  <h3 className="text-lg font-semibold mb-3">Company Information</h3>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="flex items-center gap-3">
-                                      <Building className="w-4 h-4 text-muted-foreground" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Company Name</span>
-                                        <p className="font-medium">{registration.companyName}</p>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm text-foreground">{formatDate(registration.submittedAt)}</span>
+                            <span className="text-xs text-muted-foreground">{formatTimeSince(registration.submittedAt)}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="cursor-pointer"
+                                  onClick={() => setSelectedRegistration(registration)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center gap-2">
+                                    <Building className="w-5 h-5" />
+                                    Registration Details - {registration.companyName || "N/A"}
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    Review the complete registration information
+                                  </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="space-y-6">
+                                  {/* Company Information */}
+                                  <div>
+                                    <h3 className="text-lg font-semibold mb-3">Company Information</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="flex items-center gap-3">
+                                        <Building className="w-4 h-4 text-muted-foreground" />
+                                        <div>
+                                          <span className="text-sm text-muted-foreground">Company Name</span>
+                                          <p className="font-medium">{registration.companyName || "N/A"}</p>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <span className="w-4 h-4 text-muted-foreground">#</span>
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Company Code</span>
-                                        <p className="font-medium">{registration.companyCode}</p>
+                                      <div className="flex items-center gap-3">
+                                        <span className="w-4 h-4 text-muted-foreground">#</span>
+                                        <div>
+                                          <span className="text-sm text-muted-foreground">Company Code</span>
+                                          <p className="font-medium">{registration.companyCode || "N/A"}</p>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <User className="w-4 h-4 text-muted-foreground" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Contact Person</span>
-                                        <p className="font-medium">{registration.contactInfo}</p>
+                                      <div className="flex items-center gap-3">
+                                        <User className="w-4 h-4 text-muted-foreground" />
+                                        <div>
+                                          <span className="text-sm text-muted-foreground">Contact Person</span>
+                                          <p className="font-medium">{registration.contactInfo}</p>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <Phone className="w-4 h-4 text-muted-foreground" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Phone</span>
-                                        <p className="font-medium">{registration.phone}</p>
+                                      <div className="flex items-center gap-3">
+                                        <Phone className="w-4 h-4 text-muted-foreground" />
+                                        <div>
+                                          <span className="text-sm text-muted-foreground">Phone</span>
+                                          <p className="font-medium">{registration.phone}</p>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 md:col-span-2">
-                                      <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Address</span>
-                                        <p className="font-medium">{registration.address}</p>
+                                      <div className="flex items-start gap-3 md:col-span-2">
+                                        <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                                        <div>
+                                          <span className="text-sm text-muted-foreground">Address</span>
+                                          <p className="font-medium">{registration.address}</p>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <Mail className="w-4 h-4 text-muted-foreground" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Email</span>
-                                        <p className="font-medium">{registration.email}</p>
+                                      <div className="flex items-center gap-3">
+                                        <Mail className="w-4 h-4 text-muted-foreground" />
+                                        <div>
+                                          <span className="text-sm text-muted-foreground">Email</span>
+                                          <p className="font-medium">{registration.email || "N/A"}</p>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
 
-                                {/* Subscription Plan */}
-                                <div>
-                                  <h3 className="text-lg font-semibold mb-3">Selected Plan</h3>
-                                  <div className="border rounded-lg p-4">
-                                    <div className="flex items-center justify-between">
+                                  {/* Subscription Plan */}
+                                  <div>
+                                    <h3 className="text-lg font-semibold mb-3">Selected Plan</h3>
+                                    <div className="border rounded-lg p-4">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <Badge className={planInfo.color}>
+                                            {planInfo.name}
+                                          </Badge>
+                                          <p className="text-sm text-muted-foreground mt-1">
+                                            {registration.maxVehicles === -1
+                                              ? "Unlimited vehicles"
+                                              : `Up to ${registration.maxVehicles} vehicles`}
+                                          </p>
+                                        </div>
+                                        <div className="text-right">
+                                          <span className="text-2xl font-bold">${registration.planPrice || 0}</span>
+                                          <span className="text-muted-foreground">/month</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Submission Details */}
+                                  <div>
+                                    <h3 className="text-lg font-semibold mb-3">Submission Details</h3>
+                                    <div className="flex items-center gap-3">
+                                      <Calendar className="w-4 h-4 text-muted-foreground" />
                                       <div>
-                                        <Badge className={plans[registration.selectedPlan as keyof typeof plans].color}>
-                                          {plans[registration.selectedPlan as keyof typeof plans].name}
-                                        </Badge>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                          {registration.maxVehicles === -1 
-                                            ? "Unlimited vehicles" 
-                                            : `Up to ${registration.maxVehicles} vehicles`}
-                                        </p>
-                                      </div>
-                                      <div className="text-right">
-                                        <span className="text-2xl font-bold">${registration.planPrice}</span>
-                                        <span className="text-muted-foreground">/month</span>
+                                        <span className="text-sm text-muted-foreground">Submitted</span>
+                                        <p className="font-medium">{formatDate(registration.submittedAt)}</p>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
 
-                                {/* Submission Details */}
-                                <div>
-                                  <h3 className="text-lg font-semibold mb-3">Submission Details</h3>
-                                  <div className="flex items-center gap-3">
-                                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                                    <div>
-                                      <span className="text-sm text-muted-foreground">Submitted</span>
-                                      <p className="font-medium">{formatDate(registration.submittedAt)}</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Status Information */}
-                                {registration.status === "approved" && (
-                                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                                    <div className="flex items-center gap-2">
-                                      <Check className="w-5 h-5 text-green-600" />
-                                      <span className="font-medium text-green-800 dark:text-green-300">Approved</span>
-                                    </div>
-                                    <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                                      Approved on {formatDate(registration.approvedAt!)} by {registration.approvedBy}
-                                    </p>
-                                  </div>
-                                )}
-
-                                {registration.status === "rejected" && (
-                                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                                    <div className="flex items-center gap-2">
-                                      <X className="w-5 h-5 text-red-600" />
-                                      <span className="font-medium text-red-800 dark:text-red-300">Rejected</span>
-                                    </div>
-                                    <p className="text-sm text-red-700 dark:text-red-400 mt-1">
-                                      Rejected on {formatDate(registration.rejectedAt!)} by {registration.rejectedBy}
-                                    </p>
-                                    {registration.rejectionReason && (
-                                      <p className="text-sm text-red-700 dark:text-red-400 mt-2">
-                                        <strong>Reason:</strong> {registration.rejectionReason}
+                                  {/* Status Information */}
+                                  {registration.status === "approved" && (
+                                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                                      <div className="flex items-center gap-2">
+                                        <Check className="w-5 h-5 text-green-600" />
+                                        <span className="font-medium text-green-800 dark:text-green-300">Approved</span>
+                                      </div>
+                                      <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                                        Approved on {registration.approvedAt ? formatDate(registration.approvedAt) : "N/A"} by {registration.approvedBy || "Admin"}
                                       </p>
-                                    )}
-                                  </div>
-                                )}
+                                    </div>
+                                  )}
 
-                                {/* Actions for pending registrations */}
-                                {registration.status === "pending" && (
-                                  <div className="flex gap-3 pt-4 border-t">
-                                    <Button 
-                                      onClick={() => handleApprove(registration.id)}
-                                      className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"
-                                    >
-                                      <Check className="w-4 h-4 mr-2" />
-                                      Approve Registration
-                                    </Button>
-                                    <Button 
-                                      onClick={() => handleReject(registration.id)}
-                                      variant="destructive"
-                                      className="flex-1 cursor-pointer"
-                                    >
-                                      <X className="w-4 h-4 mr-2" />
-                                      Reject Registration
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
+                                  {registration.status === "rejected" && (
+                                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                                      <div className="flex items-center gap-2">
+                                        <X className="w-5 h-5 text-red-600" />
+                                        <span className="font-medium text-red-800 dark:text-red-300">Rejected</span>
+                                      </div>
+                                      <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                                        Rejected on {registration.rejectedAt ? formatDate(registration.rejectedAt) : "N/A"} by {registration.rejectedBy || "Admin"}
+                                      </p>
+                                      {/* {registration.rejectionReason && (
+                                        <p className="text-sm text-red-700 dark:text-red-400 mt-2">
+                                          <strong>Reason:</strong> {registration.rejectionReason}
+                                        </p>
+                                      )} */}
+                                    </div>
+                                  )}
 
-                          {registration.status === "pending" && (
-                            <>
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleApprove(registration.id)}
-                                className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
-                              >
-                                <Check className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                className="cursor-pointer"
-                                onClick={() => handleReject(registration.id)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                                  {/* Actions for pending registrations */}
+                                  {registration.status === "pending" && (
+                                    <div className="flex gap-3 pt-4 border-t">
+                                      <Button
+                                        onClick={() => handleApprove(registration.id)}
+                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                                      >
+                                        <Check className="w-4 h-4 mr-2" />
+                                        Approve Registration
+                                      </Button>
+                                      <Button
+                                        onClick={() => handleReject(registration.id)}
+                                        variant="destructive"
+                                        className="flex-1 cursor-pointer"
+                                      >
+                                        <X className="w-4 h-4 mr-2" />
+                                        Reject Registration
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+
+                            {registration.status === "pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApprove(registration.id)}
+                                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="cursor-pointer"
+                                  onClick={() => handleReject(registration.id)}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -527,8 +545,8 @@ export default function SuperAdminFleetManagement() {
                 <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">No registrations found</h3>
                 <p className="text-sm text-muted-foreground">
-                  {searchValue || filterStatus !== "all" 
-                    ? "Try adjusting your search or filter criteria." 
+                  {searchValue || filterStatus !== "all"
+                    ? "Try adjusting your search or filter criteria."
                     : "No registration requests available at the moment."}
                 </p>
               </div>

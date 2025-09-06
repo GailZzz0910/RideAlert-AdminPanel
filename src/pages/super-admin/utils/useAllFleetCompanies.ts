@@ -21,7 +21,7 @@ export function useAllFleetCompanies() {
             contactEmail: f.contact_info?.[0]?.email ?? "",
             status: f.is_active ? "active" : "inactive",
             plan: f.subscription_plan,
-            vehiclesCount: f.max_vehicles?? 0,
+            vehiclesCount: f.max_vehicles ?? 0,
             createdAt: f.created_at
           }));
           setFleets(mapped);
@@ -32,8 +32,11 @@ export function useAllFleetCompanies() {
     };
 
     ws.onerror = (err) => {
-      console.error("Fleet WebSocket error:", err);
+      if (ws.readyState !== WebSocket.CLOSED) {
+        console.error("Fleet WebSocket error:", err);
+      }
     };
+
 
     ws.onclose = () => console.log("Fleets WebSocket closed");
 
