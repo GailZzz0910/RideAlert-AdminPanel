@@ -324,7 +324,7 @@ export default function SuperAdminFleetManagement() {
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex flex-col">
-                            <span className="text-sm text-foreground">{registration.contactInfo}</span>
+                            <span className="text-sm text-foreground">{registration.phone}</span>
                             <span className="text-xs text-muted-foreground">{registration.email || "N/A"}</span>
                           </div>
                         </td>
