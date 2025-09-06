@@ -20,6 +20,8 @@ import {
   Clock,
 } from "lucide-react";
 import { useUser } from "@/context/userContext";
+import { wsBaseURL } from "@/utils/api";
+import { apiBaseURL } from "@/utils/api";
 
 interface AddIOTDeviceDialogProps {
   children: React.ReactNode;
@@ -65,7 +67,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
         setLoading(true);
 
         // Connect to WebSocket for companies
-        ws = new WebSocket(`ws://192.168.1.7:8000/fleets/ws/all?token=${token}`);
+        ws = new WebSocket(`${wsBaseURL}/fleets/ws/all?token=${token}`);
 
         ws.onopen = () => {
           console.log("Fleet WebSocket connected");
@@ -102,7 +104,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
         };
 
         // Fetch device models
-        const modelsRes = await fetch("http://192.168.1.7:8000/iot_devices/device-models", {
+        const modelsRes = await fetch(`${apiBaseURL}/iot_devices/device-models`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!modelsRes.ok) {
@@ -161,7 +163,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
 
       // Try REST endpoint first
       try {
-        const res = await fetch(`http://192.168.1.7:8000/vehicles/all/${fleetId}`, {
+        const res = await fetch(`${apiBaseURL}/vehicles/all/${fleetId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) {
@@ -189,7 +191,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
 
         // Fallback to WebSocket
         try {
-          vehicleWs = new WebSocket(`ws://192.168.1.7:8000/ws/vehicles/all/${fleetId}?token=${token}`);
+          vehicleWs = new WebSocket(`${wsBaseURL}/ws/vehicles/all/${fleetId}?token=${token}`);
 
           vehicleWs.onopen = () => {
             console.log("Vehicle WebSocket connected");
@@ -324,7 +326,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
           notes: formData.notes,
         };
 
-        const res = await fetch("http://192.168.1.7:8000/iot_devices/", {
+        const res = await fetch(`${apiBaseURL}/iot_devices/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
