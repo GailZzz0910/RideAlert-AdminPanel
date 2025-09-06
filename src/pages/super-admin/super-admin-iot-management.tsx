@@ -40,56 +40,90 @@ export default function SuperAdminIOTManagement() {
 
   // Fetch IoT devices from backend
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/iot_devices/ws/all");
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 3000; // 3 seconds
 
-    ws.onopen = () => {
-      console.log("Connected to IoT WebSocket");
-    };
-
-    ws.onmessage = (event) => {
+    const connectWebSocket = () => {
       try {
-        const data = JSON.parse(event.data);
-        if (data.devices) {
-          const mapped = data.devices.map((d: any) => ({
-            _id: typeof d._id === "string" ? d._id : d._id.$oid || String(d._id),
-            objectId: d.device_name,
-            deviceModel: d.device_model || "Unknown",
-            vehicleId: d.vehicle_id !== "None" ? d.vehicle_id : null,
-            vehiclePlate: d.vehicle_id !== "None" ? d.vehicle_id : null,
-            companyName: d.company_name || null,
-            isActive: d.is_active === "active",
-            status:
-              d.is_active === "active"
-                ? "online"
-                : d.is_active === "maintenance"
-                  ? "maintenance"
-                  : "offline",
-            lastUpdate: d.last_update || d.createdAt,
-            batteryLevel: 100,
-            signalStrength: d.is_active === "active" ? 90 : 0,
-            location: null,
-            assignedDate: d.createdAt,
-          }));
+        ws = new WebSocket("ws://localhost:8000/iot_devices/ws/all");
 
+        ws.onopen = () => {
+          console.log("Connected to IoT WebSocket");
+          reconnectAttempts = 0;
+        };
 
-          setDevices(mapped);
-        }
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.devices) {
+              const mapped = data.devices.map((d: any) => ({
+                _id: typeof d._id === "string" ? d._id : d._id.$oid || String(d._id),
+                objectId: d.device_name,
+                deviceModel: d.device_model || "Unknown",
+                vehicleId: d.vehicle_id !== "None" ? d.vehicle_id : null,
+                vehiclePlate: d.vehicle_id !== "None" ? d.vehicle_id : null,
+                companyName: d.company_name || null,
+                isActive: d.is_active === "active",
+                status:
+                  d.is_active === "active"
+                    ? "online"
+                    : d.is_active === "maintenance"
+                      ? "maintenance"
+                      : "offline",
+                lastUpdate: d.last_update || d.createdAt,
+                batteryLevel: 100,
+                signalStrength: d.is_active === "active" ? 90 : 0,
+                location: null,
+                assignedDate: d.createdAt,
+              }));
+
+              setDevices(mapped);
+            }
+          } catch (err) {
+            console.error("Error parsing WebSocket message:", err);
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.error("WebSocket connection error. Check if backend is running on localhost:8000");
+          console.error("Error details:", err);
+        };
+
+        ws.onclose = (event) => {
+          console.log(`WebSocket closed: Code ${event.code}, Reason: ${event.reason || 'No reason'}`);
+
+          // Only attempt reconnection if it wasn't a manual close
+          if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts}) in ${reconnectDelay / 1000}s...`);
+
+            reconnectTimeout = setTimeout(() => {
+              connectWebSocket();
+            }, reconnectDelay);
+          } else if (reconnectAttempts >= maxReconnectAttempts) {
+            console.error("Max reconnection attempts reached. Please check your backend server and refresh the page.");
+          }
+        };
+
       } catch (err) {
-        console.error("Error parsing WebSocket message:", err);
+        console.error("Failed to create WebSocket connection:", err);
       }
     };
 
-    ws.onerror = (err) => {
-      console.error("WebSocket error:", err);
-    };
+    // Initial connection
+    connectWebSocket();
 
-    ws.onclose = () => {
-      console.log("WebSocket closed");
-    };
-
-    // cleanup when component unmounts
+    // Cleanup function
     return () => {
-      ws.close();
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close(1000, "Component unmounting");
+      }
     };
   }, []);
 
@@ -122,30 +156,10 @@ export default function SuperAdminIOTManagement() {
 
 
   const handleAddDevice = (newDevice: any) => {
-    setDevices((prevDevices) => [
-      ...prevDevices,
-      {
-        id: prevDevices.length + 1,
-        _id: newDevice._id,  // 👈 important
-        objectId: newDevice.device_name,
-        deviceModel: newDevice.device_model || "Unknown",
-        vehicleId: newDevice.vehicle_id !== "None" ? newDevice.vehicle_id : null,
-        vehiclePlate: newDevice.vehicle_id !== "None" ? newDevice.vehicle_id : null,
-        companyName: newDevice.company_name || null,
-        isActive: newDevice.is_active === "active",
-        status:
-          newDevice.is_active === "active"
-            ? "online"
-            : newDevice.is_active === "maintenance"
-              ? "maintenance"
-              : "offline",
-        lastUpdate: newDevice.last_update || newDevice.createdAt,
-        batteryLevel: 100,
-        signalStrength: newDevice.is_active === "active" ? 90 : 0,
-        location: null,
-        assignedDate: newDevice.createdAt,
-      },
-    ]);
+    // Don't manually update state - let WebSocket handle it
+    console.log("Device added successfully:", newDevice);
+    // The WebSocket will automatically receive the updated devices list
+    // and update the state accordingly
   };
 
   const filteredDevices = devices.filter((device) => {
@@ -364,7 +378,7 @@ export default function SuperAdminIOTManagement() {
                 </thead>
                 <tbody>
                   {filteredDevices.map((device) => (
-                    <tr key={device.id} className="border-b border-border hover:bg-muted/50">
+                    <tr key={device._id} className="border-b border-border hover:bg-muted/50">
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
                           <Cpu className="w-4 h-4 text-muted-foreground" />
