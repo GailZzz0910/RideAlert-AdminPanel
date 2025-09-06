@@ -247,7 +247,7 @@ export default function CompanyManagement() {
 
         {/* Companies Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCompanies.map((company: any) => (
+          {filteredCompanies.map((company: any, index: number) => (
             <Card key={company._id} className="hover:shadow-lg transition-all duration-200">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
