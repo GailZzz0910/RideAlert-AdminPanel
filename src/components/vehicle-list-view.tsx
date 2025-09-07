@@ -16,8 +16,12 @@ import {
   ContextMenuItem,
 } from "@/components/ui/context-menu";
 import { Trash2, Pencil } from "lucide-react";
+import axios from "axios";
+import { apiBaseURL } from "@/utils/api";
+import { useUser } from "@/context/userContext";
 
 export interface VehicleListItem {
+  id: string;
   title: string;
   subtitle: string;
   status: string;
@@ -40,6 +44,7 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
   const [page, setPage] = useState(1);
   const pageSize = 7;
   const totalPages = Math.ceil(vehicles.length / pageSize);
+  const { token } = useUser();
 
   // Selection state
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
@@ -67,15 +72,31 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this vehicle?")) return;
+    try {
+      await axios.delete(`${apiBaseURL}/vehicles/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      alert("Vehicle deleted successfully");
+      // Optionally refresh the list or remove the deleted vehicle from state here
+    } catch (error: any) {
+      console.error("Delete failed:", error);
+      alert(error.response?.data?.detail || "Failed to delete vehicle");
+    }
+  };
+
   return (
     <div className="bg-card overflow-hidden rounded-md border p-5">
       <Table>
         <TableHeader>
           <TableRow>
-    {/* Removed checkbox header */}
+            {/* Removed checkbox header */}
             <TableHead className="font-semibold">Plate</TableHead>
             <TableHead className="font-semibold">Status</TableHead>
-            <TableHead className="font-semibold">Vehicle</TableHead>
             <TableHead className="font-semibold">Route</TableHead>
             <TableHead className="font-semibold">Capacity</TableHead>
             <TableHead className="font-semibold">Driver</TableHead>
@@ -91,7 +112,7 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
 
                     <TableCell>
                       <span className={cn("text-xs font-medium px-2.5 py-1 ")}>
-                       ABC-123
+                        {vehicle.subtitle}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -101,9 +122,6 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
                     </TableCell>
                     <TableCell>
                       <span className="font-medium text-foreground text-sm">{vehicle.title}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium text-foreground text-sm">{vehicle.subtitle.replace('ETA: ', '')}</span>
                     </TableCell>
                     <TableCell>
                       <span className="font-medium text-foreground text-sm">{vehicle.orderCompleted}</span>
@@ -126,7 +144,7 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
                   </ContextMenuItem>
                   <ContextMenuItem
                     variant="destructive"
-                    onClick={() => alert(`Delete vehicle: ${vehicle.title}`)}
+                    onClick={() => handleDelete(vehicle.id)}   // 👈 use the id
                     className="flex items-center gap-2 text-base text-red-500"
                   >
                     <Trash2 size={18} className="text-red-500" />
