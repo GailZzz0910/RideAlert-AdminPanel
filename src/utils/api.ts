@@ -1,16 +1,16 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://192.168.1.7:8000",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "https://ridealert-backend.onrender.com",
   withCredentials: true,
 });
 
 // 🔑 Add WebSocket base URL (not part of axios, so export separately)
 export const wsBaseURL =
-  import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8000";
+  import.meta.env.VITE_WS_BASE_URL || "ws://ridealert-backend.onrender.com";
 
 export const apiBaseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+  import.meta.env.VITE_API_BASE_URL || "https://ridealert-backend.onrender.com";
 
 // Add a request interceptor to add the token to all requests
 api.interceptors.request.use(
