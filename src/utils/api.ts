@@ -7,7 +7,7 @@ const api = axios.create({
 
 // 🔑 Add WebSocket base URL (not part of axios, so export separately)
 export const wsBaseURL =
-  import.meta.env.VITE_WS_BASE_URL || "ws://ridealert-backend.onrender.com";
+  import.meta.env.VITE_WS_BASE_URL || "wss://ridealert-backend.onrender.com";
 
 export const apiBaseURL =
   import.meta.env.VITE_API_BASE_URL || "https://ridealert-backend.onrender.com";

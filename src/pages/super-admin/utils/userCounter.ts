@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-
+import { wsBaseURL } from "@/utils/api";
 export const useUserCounter = () => {
   const [userCount, setUserCount] = useState(0);
 
@@ -9,7 +9,7 @@ export const useUserCounter = () => {
 
     // Prevent duplicate connections in Strict Mode
     if (!ws) {
-      ws = new WebSocket("ws://localhost:8000/users/ws/count-users");
+      ws = new WebSocket(`${wsBaseURL}/users/ws/count-users`);
 
       ws.onopen = () => {
         if (isMounted) console.log("Connected to user count WebSocket");

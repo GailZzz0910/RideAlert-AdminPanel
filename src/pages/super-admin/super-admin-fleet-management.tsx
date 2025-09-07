@@ -27,6 +27,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useUser } from "@/context/userContext";
+import { apiBaseURL } from "@/utils/api";
+import { wsBaseURL } from "@/utils/api";
 
 const plans = {
   basic: { name: "Basic", color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300" },
@@ -49,7 +51,7 @@ export default function SuperAdminFleetManagement() {
 
   // Connect to the websocket
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/fleets/ws/all");
+    const ws = new WebSocket(`${wsBaseURL}/fleets/ws/all`);
 
     ws.onopen = () => console.log("Connected to fleets websocket");
     ws.onmessage = (event) => {
@@ -161,7 +163,7 @@ export default function SuperAdminFleetManagement() {
     if (!fleetId) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/fleets/${fleetId}/approve`, {
+      const response = await fetch(`${apiBaseURL}/fleets/${fleetId}/approve`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -185,7 +187,7 @@ export default function SuperAdminFleetManagement() {
     if (!fleetId) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/fleets/${fleetId}/reject`, {
+      const response = await fetch(`${apiBaseURL}/fleets/${fleetId}/reject`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

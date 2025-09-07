@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { wsBaseURL } from "@/utils/api";
 
 export const useAllFleets = () => {
   const [fleets, setFleets] = useState<any[]>([]);
@@ -8,7 +9,7 @@ export const useAllFleets = () => {
     let isMounted = true;
 
     if (!ws) {
-      ws = new WebSocket("ws://localhost:8000/fleets/ws/all");
+      ws = new WebSocket(`${wsBaseURL}/fleets/ws/all`);
 
       ws.onopen = () => {
         if (isMounted) console.log("Connected to all fleets WebSocket");
