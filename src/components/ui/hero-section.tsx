@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
-// import { World } from "../ui/globe";
+import { World } from "../ui/globe";
 import { FlipWords } from "../ui/flip-words";
-// import { globeConfig, sampleArcs } from "../../data/globe-data";
+import { globeConfig, sampleArcs } from "../../data/globe-data";
 
 export default function HeroSection() {
   // ...existing code...
@@ -56,7 +56,7 @@ export default function HeroSection() {
             >
               {/* Globe Visualization */}
               <div className="w-full h-[380px] sm:h-[300px] md:h-[400px] lg:h-[600px] overflow-visible">
-                {/* <World data={sampleArcs} globeConfig={globeConfig} /> */}
+                <World data={sampleArcs} globeConfig={globeConfig} />
               </div>
             </motion.div>
           </div>
