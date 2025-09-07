@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-
+import { wsBaseURL } from "@/utils/api";
 export function useFleetVehicles(fleetId: string | undefined) {
     const [vehicles, setVehicles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -11,7 +11,7 @@ export function useFleetVehicles(fleetId: string | undefined) {
         let ws: WebSocket | null = null;
         let closedByHook = false;
 
-        ws = new WebSocket(`ws://localhost:8000/ws/vehicles/all/${fleetId}`);
+        ws = new WebSocket(`${wsBaseURL}/ws/vehicles/all/${fleetId}`);
 
         ws.onopen = () => console.log("Connected to fleet vehicles WebSocket");
         ws.onmessage = (event) => {

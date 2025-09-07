@@ -1,11 +1,11 @@
 // utils/useAllFleets.ts
 import { useEffect, useState } from "react";
-
+import { wsBaseURL } from "@/utils/api";
 export function useAllFleetCompanies() {
   const [fleets, setFleets] = useState<any[]>([]);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/fleets/ws/all");
+    const ws = new WebSocket(`${wsBaseURL}/fleets/ws/all`);
 
     ws.onopen = () => console.log("Connected to all fleets WebSocket");
 

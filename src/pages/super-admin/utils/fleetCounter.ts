@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-
+import { wsBaseURL } from "@/utils/api";
 export const useFleetCounter = () => {
 
 const [fleetCount, setFleetCount] = useState(0);
@@ -10,7 +10,7 @@ const [fleetCount, setFleetCount] = useState(0);
 
     // Prevent duplicate connections in Strict Mode
     if (!ws) {
-      ws = new WebSocket("ws://localhost:8000/fleets/ws/count-fleets");
+      ws = new WebSocket(`${wsBaseURL}/fleets/ws/count-fleets`);
 
       ws.onopen = () => {
         if (isMounted) console.log("Connected to fleet count WebSocket");

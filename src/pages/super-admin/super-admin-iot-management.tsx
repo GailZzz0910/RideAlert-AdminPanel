@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/dialog";
 import AddIOTDeviceDialog from "@/components/add-iot-device-dialog";
 import { useUser } from "@/context/userContext";
+import { wsBaseURL } from "@/utils/api";
+import { apiBaseURL } from "@/utils/api";
 
 export default function SuperAdminIOTManagement() {
   const [searchValue, setSearchValue] = useState("");
@@ -48,7 +50,7 @@ export default function SuperAdminIOTManagement() {
 
     const connectWebSocket = () => {
       try {
-        ws = new WebSocket("ws://localhost:8000/iot_devices/ws/all");
+        ws = new WebSocket(`${wsBaseURL}/iot_devices/ws/all`);
 
         ws.onopen = () => {
           console.log("Connected to IoT WebSocket");
@@ -132,7 +134,7 @@ export default function SuperAdminIOTManagement() {
     if (!confirm("Are you sure you want to delete this device?")) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/iot_devices/${deviceId}`, {
+      const response = await fetch(`${apiBaseURL}/iot_devices/${deviceId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
