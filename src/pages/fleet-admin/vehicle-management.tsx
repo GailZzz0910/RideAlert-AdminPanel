@@ -113,8 +113,9 @@ export default function VehicleManagement() {
         ) : (
           <VehicleListView
             vehicles={filteredVehicles.map((v) => ({
+              id: v.id,
               title: v.route,
-              subtitle: `Plate: ${v.plate}`, // or use ETA if available
+              subtitle: `${v.plate}`, // or use ETA if available
               status: getVehicleStatusFromData(v.status),
               statusColor: getStatusColorFromData(v.status),
               orderCompleted: v.available_seats,
