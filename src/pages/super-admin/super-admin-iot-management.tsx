@@ -2,11 +2,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit, 
+import {
+  Search,
+  Filter,
+  Plus,
+  Edit,
   Trash2,
   Eye,
   Cpu,
@@ -18,7 +18,7 @@ import {
   Clock,
   Building
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,131 +28,187 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import AddIOTDeviceDialog from "@/components/add-iot-device-dialog";
-
-// Mock data for IOT devices - replace with real API calls later
-const mockIOTDevices = [
-  {
-    id: 1,
-    objectId: "IOT001",
-    deviceModel: "GPS-Tracker-Pro-X1",
-    vehicleId: 1,
-    vehiclePlate: "NYC-001",
-    companyName: "City Transport Co.",
-    isActive: true,
-    status: "online",
-    lastUpdate: "2024-09-02T14:30:00Z",
-    batteryLevel: 85,
-    signalStrength: 95,
-    location: { lat: 40.7128, lng: -74.0060 },
-    assignedDate: "2024-01-15T10:00:00Z"
-  },
-  {
-    id: 2,
-    objectId: "IOT002",
-    deviceModel: "GPS-Tracker-Pro-X1",
-    vehicleId: 2,
-    vehiclePlate: "NYC-002",
-    companyName: "City Transport Co.",
-    isActive: true,
-    status: "offline",
-    lastUpdate: "2024-09-02T12:15:00Z",
-    batteryLevel: 22,
-    signalStrength: 0,
-    location: { lat: 40.7589, lng: -73.9851 },
-    assignedDate: "2024-01-20T09:30:00Z"
-  },
-  {
-    id: 3,
-    objectId: "IOT003",
-    deviceModel: "GPS-Tracker-Lite-V2",
-    vehicleId: null,
-    vehiclePlate: null,
-    companyName: null,
-    isActive: false,
-    status: "unassigned",
-    lastUpdate: "2024-08-28T16:45:00Z",
-    batteryLevel: 100,
-    signalStrength: 0,
-    location: null,
-    assignedDate: null
-  },
-  {
-    id: 4,
-    objectId: "IOT004",
-    deviceModel: "GPS-Tracker-Pro-X1",
-    vehicleId: 15,
-    vehiclePlate: "MTR-015",
-    companyName: "Metro Bus Lines",
-    isActive: true,
-    status: "online",
-    lastUpdate: "2024-09-02T14:28:00Z",
-    batteryLevel: 67,
-    signalStrength: 88,
-    location: { lat: 40.7831, lng: -73.9712 },
-    assignedDate: "2024-02-10T14:20:00Z"
-  },
-  {
-    id: 5,
-    objectId: "IOT005",
-    deviceModel: "GPS-Tracker-Lite-V2",
-    vehicleId: 28,
-    vehiclePlate: "URB-028",
-    companyName: "Urban Mobility Inc.",
-    isActive: true,
-    status: "maintenance",
-    lastUpdate: "2024-09-01T18:00:00Z",
-    batteryLevel: 45,
-    signalStrength: 75,
-    location: { lat: 40.7282, lng: -73.7949 },
-    assignedDate: "2024-03-05T11:15:00Z"
-  }
-];
+import { useUser } from "@/context/userContext";
 
 export default function SuperAdminIOTManagement() {
   const [searchValue, setSearchValue] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedDevice, setSelectedDevice] = useState<any>(null);
-  const [devices, setDevices] = useState(mockIOTDevices);
+  const [devices, setDevices] = useState<any[]>([]);
+
+  const { token } = useUser();
+
+  // Fetch IoT devices from backend
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 3000; // 3 seconds
+
+    const connectWebSocket = () => {
+      try {
+        ws = new WebSocket("ws://localhost:8000/iot_devices/ws/all");
+
+        ws.onopen = () => {
+          console.log("Connected to IoT WebSocket");
+          reconnectAttempts = 0;
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.devices) {
+              const mapped = data.devices.map((d: any) => ({
+                _id: typeof d._id === "string" ? d._id : d._id.$oid || String(d._id),
+                objectId: d.device_name,
+                deviceModel: d.device_model || "Unknown",
+                vehicleId: d.vehicle_id !== "None" ? d.vehicle_id : null,
+                vehiclePlate: d.vehicle_id !== "None" ? d.vehicle_id : null,
+                companyName: d.company_name || null,
+                isActive: d.is_active === "active",
+                status:
+                  d.is_active === "active"
+                    ? "online"
+                    : d.is_active === "maintenance"
+                      ? "maintenance"
+                      : "offline",
+                lastUpdate: d.last_update || d.createdAt,
+                batteryLevel: 100,
+                signalStrength: d.is_active === "active" ? 90 : 0,
+                location: null,
+                assignedDate: d.createdAt,
+              }));
+
+              setDevices(mapped);
+            }
+          } catch (err) {
+            console.error("Error parsing WebSocket message:", err);
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.error("WebSocket connection error. Check if backend is running on localhost:8000");
+          console.error("Error details:", err);
+        };
+
+        ws.onclose = (event) => {
+          console.log(`WebSocket closed: Code ${event.code}, Reason: ${event.reason || 'No reason'}`);
+
+          // Only attempt reconnection if it wasn't a manual close
+          if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts}) in ${reconnectDelay / 1000}s...`);
+
+            reconnectTimeout = setTimeout(() => {
+              connectWebSocket();
+            }, reconnectDelay);
+          } else if (reconnectAttempts >= maxReconnectAttempts) {
+            console.error("Max reconnection attempts reached. Please check your backend server and refresh the page.");
+          }
+        };
+
+      } catch (err) {
+        console.error("Failed to create WebSocket connection:", err);
+      }
+    };
+
+    // Initial connection
+    connectWebSocket();
+
+    // Cleanup function
+    return () => {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close(1000, "Component unmounting");
+      }
+    };
+  }, []);
+
+  const handleDeleteDevice = async (deviceId: string) => {
+    if (!deviceId) return alert("Device ID is missing!");
+    if (!confirm("Are you sure you want to delete this device?")) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/iot_devices/${deviceId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "Failed to delete device");
+      }
+
+      // Remove deleted device from state
+      setDevices(prev => prev.filter(d => d._id !== deviceId));
+      alert("Device deleted successfully");
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+      console.error(err);
+    }
+  };
+
 
   const handleAddDevice = (newDevice: any) => {
-    setDevices(prevDevices => [...prevDevices, newDevice]);
+    // Don't manually update state - let WebSocket handle it
+    console.log("Device added successfully:", newDevice);
+    // The WebSocket will automatically receive the updated devices list
+    // and update the state accordingly
   };
 
   const filteredDevices = devices.filter((device) => {
-    const matchesSearch = 
+    const matchesSearch =
       device.objectId.toLowerCase().includes(searchValue.toLowerCase()) ||
-      (device.vehiclePlate && device.vehiclePlate.toLowerCase().includes(searchValue.toLowerCase())) ||
-      (device.companyName && device.companyName.toLowerCase().includes(searchValue.toLowerCase())) ||
+      (device.vehiclePlate &&
+        device.vehiclePlate.toLowerCase().includes(searchValue.toLowerCase())) ||
+      (device.companyName &&
+        device.companyName.toLowerCase().includes(searchValue.toLowerCase())) ||
       device.deviceModel.toLowerCase().includes(searchValue.toLowerCase());
-    
-    const matchesFilter = 
-      filterStatus === "all" || 
+
+    const matchesFilter =
+      filterStatus === "all" ||
       (filterStatus === "assigned" && device.vehicleId !== null) ||
       (filterStatus === "unassigned" && device.vehicleId === null) ||
       (filterStatus === "online" && device.status === "online") ||
       (filterStatus === "offline" && device.status === "offline") ||
       (filterStatus === "maintenance" && device.status === "maintenance");
-    
+
     return matchesSearch && matchesFilter;
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "online": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-      case "offline": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-      case "maintenance": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
-      case "unassigned": return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
-      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
+      case "online":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+      case "offline":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+      case "maintenance":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
+      case "unassigned":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "online": return <Wifi className="w-4 h-4" />;
-      case "offline": return <WifiOff className="w-4 h-4" />;
-      case "maintenance": return <AlertCircle className="w-4 h-4" />;
-      case "unassigned": return <Clock className="w-4 h-4" />;
-      default: return <Activity className="w-4 h-4" />;
+      case "online":
+        return <Wifi className="w-4 h-4" />;
+      case "offline":
+        return <WifiOff className="w-4 h-4" />;
+      case "maintenance":
+        return <AlertCircle className="w-4 h-4" />;
+      case "unassigned":
+        return <Clock className="w-4 h-4" />;
+      default:
+        return <Activity className="w-4 h-4" />;
     }
   };
 
@@ -168,29 +224,31 @@ export default function SuperAdminIOTManagement() {
       day: "numeric",
       year: "numeric",
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
     });
   };
 
   const formatTimeSince = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
+    const diffInMinutes = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60)
+    );
+
     if (diffInMinutes < 1) return "Just now";
     if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
+
     const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
   };
 
   return (
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
-        
+
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -309,7 +367,7 @@ export default function SuperAdminIOTManagement() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Device ID</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Device Name</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Model</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assignment</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
@@ -320,7 +378,7 @@ export default function SuperAdminIOTManagement() {
                 </thead>
                 <tbody>
                   {filteredDevices.map((device) => (
-                    <tr key={device.id} className="border-b border-border hover:bg-muted/50">
+                    <tr key={device._id} className="border-b border-border hover:bg-muted/50">
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
                           <Cpu className="w-4 h-4 text-muted-foreground" />
@@ -333,8 +391,7 @@ export default function SuperAdminIOTManagement() {
                       <td className="py-4 px-4">
                         {device.vehicleId ? (
                           <div className="flex flex-col">
-                            <span className="font-medium text-foreground">{device.vehiclePlate}</span>
-                            <span className="text-xs text-muted-foreground">{device.companyName}</span>
+                            <span className="font-medium text-foreground">{device.companyName}</span>
                           </div>
                         ) : (
                           <Badge variant="outline" className="text-gray-600">
@@ -368,8 +425,8 @@ export default function SuperAdminIOTManagement() {
                         <div className="flex items-center gap-2">
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 className="cursor-pointer"
                                 onClick={() => setSelectedDevice(device)}
@@ -387,7 +444,7 @@ export default function SuperAdminIOTManagement() {
                                   Complete information about this IOT device
                                 </DialogDescription>
                               </DialogHeader>
-                              
+
                               <div className="space-y-6">
                                 {/* Device Information */}
                                 <div>
@@ -396,7 +453,7 @@ export default function SuperAdminIOTManagement() {
                                     <div className="flex items-center gap-3">
                                       <Cpu className="w-4 h-4 text-muted-foreground" />
                                       <div>
-                                        <span className="text-sm text-muted-foreground">Device ID</span>
+                                        <span className="text-sm text-muted-foreground">Device Name</span>
                                         <p className="font-medium">{device.objectId}</p>
                                       </div>
                                     </div>
@@ -434,14 +491,7 @@ export default function SuperAdminIOTManagement() {
                                       <div className="flex items-center gap-3">
                                         <Building className="w-4 h-4 text-muted-foreground" />
                                         <div>
-                                          <span className="text-sm text-muted-foreground">Vehicle Plate</span>
-                                          <p className="font-medium">{device.vehiclePlate}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <Building className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Company</span>
+                                          <span className="text-sm text-muted-foreground">Company Assigned</span>
                                           <p className="font-medium">{device.companyName}</p>
                                         </div>
                                       </div>
@@ -497,8 +547,13 @@ export default function SuperAdminIOTManagement() {
                           <Button variant="outline" size="sm" className="cursor-pointer">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          
-                          <Button variant="outline" size="sm" className="cursor-pointer text-red-600 hover:text-red-700">
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="cursor-pointer text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteDevice(device._id)}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -514,8 +569,8 @@ export default function SuperAdminIOTManagement() {
                 <Cpu className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">No devices found</h3>
                 <p className="text-sm text-muted-foreground">
-                  {searchValue || filterStatus !== "all" 
-                    ? "Try adjusting your search or filter criteria." 
+                  {searchValue || filterStatus !== "all"
+                    ? "Try adjusting your search or filter criteria."
                     : "No IOT devices available at the moment."}
                 </p>
               </div>

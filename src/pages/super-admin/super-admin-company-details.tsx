@@ -2,13 +2,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Building, 
-  Car, 
+import {
+  Building,
+  Car,
   ArrowLeft,
-  Mail, 
-  Phone, 
-  MapPin, 
+  Mail,
+  Phone,
+  MapPin,
   Calendar,
   Edit,
   Trash2,
@@ -20,63 +20,168 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-
-// Mock data for company details - replace with real API calls later
-const mockCompanyDetails = {
-  1: {
-    id: 1,
-    name: "City Transport Co.",
-    email: "admin@citytransport.com",
-    phone: "+1 (555) 123-4567",
-    address: "123 Main Street, New York, NY 10001",
-    status: "active",
-    plan: "Premium",
-    vehicleCount: 45,
-    userCount: 12,
-    joinedDate: "2023-06-15",
-    lastActivity: "2024-09-01T10:30:00Z",
-    vehicles: [
-      { id: 1, licensePlate: "NYC-001", model: "Ford Transit", year: 2022, status: "active", lastSeen: "2024-09-01T14:30:00Z" },
-      { id: 2, licensePlate: "NYC-002", model: "Mercedes Sprinter", year: 2023, status: "active", lastSeen: "2024-09-01T12:15:00Z" },
-      { id: 3, licensePlate: "NYC-003", model: "Iveco Daily", year: 2021, status: "maintenance", lastSeen: "2024-08-30T16:45:00Z" },
-      { id: 4, licensePlate: "NYC-004", model: "Ford Transit", year: 2022, status: "active", lastSeen: "2024-09-01T13:20:00Z" },
-      { id: 5, licensePlate: "NYC-005", model: "Mercedes Sprinter", year: 2023, status: "inactive", lastSeen: "2024-08-29T09:10:00Z" },
-    ]
-  },
-  // Add more mock data for other companies as needed
-};
+import { useFleetVehicles } from "./utils/useFleetVehicle";
 
 export default function SuperAdminCompanyDetails() {
   const { companyId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Simulate API call
-    const timer = setTimeout(() => {
-      const companyData = mockCompanyDetails[Number(companyId) as keyof typeof mockCompanyDetails];
-      setCompany(companyData);
-      setLoading(false);
-    }, 500);
+  const fleetId = company?.fleet_id || companyId; // adjust based on your schema
+  const { vehicles, loading: vehiclesLoading, error: vehiclesError } = useFleetVehicles(fleetId);
 
-    return () => clearTimeout(timer);
-  }, [companyId]);
+  const handleDeleteCompany = async () => {
+    const id = company?._id || companyId; // fallback to companyId
+    if (!id) return;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-      case "inactive": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-      case "maintenance": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
-      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
+    if (!confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/fleets/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Company deleted:", data);
+        navigate("/super-admin"); // redirect back
+      } else if (response.status === 404) {
+        alert("Company not found");
+      } else {
+        throw new Error(`Delete failed: ${response.status}`);
+      }
+    } catch (err) {
+      console.error("Error deleting company:", err);
+      alert("Failed to delete company. Please try again.");
     }
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!companyId) {
+      setError("No company ID provided");
+      setLoading(false);
+      return;
+    }
+
+    // Try HTTP request first since it's more reliable
+    const fetchCompanyHTTP = async () => {
+      try {
+        console.log("Fetching company with ID:", companyId);
+        const response = await fetch(`http://localhost:8000/fleets/${companyId}`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Received company data via HTTP:", data);
+          if (isMounted) {
+            setCompany(data);
+            setLoading(false);
+          }
+        } else if (response.status === 404) {
+          if (isMounted) {
+            setError("Company not found");
+            setLoading(false);
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error("HTTP request failed:", err);
+          // Try WebSocket as fallback
+          tryWebSocket();
+        }
+      }
+    };
+
+    // WebSocket fallback function
+    const tryWebSocket = () => {
+      let ws: WebSocket | null = null;
+
+      try {
+        ws = new WebSocket(`ws://localhost:8000/fleets/${companyId}/ws`);
+
+        ws.onopen = () => {
+          if (isMounted) {
+            console.log("Connected to company details WebSocket");
+          }
+        };
+
+        ws.onmessage = (event) => {
+          if (!isMounted) return;
+          try {
+            const data = JSON.parse(event.data);
+            console.log("Received company data via WebSocket:", data);
+
+            if (data.error) {
+              setError(data.error);
+              setLoading(false);
+            } else {
+              setCompany(data);
+              setLoading(false);
+            }
+          } catch (err) {
+            console.error("Error parsing WebSocket message", err);
+            setError("Failed to parse company data");
+            setLoading(false);
+          }
+        };
+
+        ws.onerror = (err) => {
+          if (isMounted) {
+            console.error("WebSocket error", err);
+            setError("Failed to connect to server");
+            setLoading(false);
+          }
+        };
+
+        ws.onclose = () => {
+          if (isMounted) {
+            console.log("Company details WebSocket disconnected");
+          }
+        };
+      } catch (err) {
+        if (isMounted) {
+          console.error("WebSocket connection failed:", err);
+          setError("Company not found");
+          setLoading(false);
+        }
+      }
+
+      // Cleanup function for WebSocket
+      return () => {
+        if (ws) {
+          ws.close();
+        }
+      };
+    };
+
+    // Start with HTTP request
+    fetchCompanyHTTP();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [companyId]);
+
+  const getStatusColor = (status: boolean | string) => {
+    // Handle both boolean and string status
+    const isActive = typeof status === 'boolean' ? status : status === 'active';
+    return isActive
+      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+      : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+  };
+
   const getPlanColor = (plan: string) => {
-    switch (plan) {
-      case "Enterprise": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
-      case "Premium": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-      case "Standard": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
+    switch (plan?.toLowerCase()) {
+      case "enterprise": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
+      case "premium": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+      case "standard": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
+      case "basic": return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
       default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
     }
   };
@@ -91,6 +196,17 @@ export default function SuperAdminCompanyDetails() {
     });
   };
 
+  const getContactInfo = () => {
+    if (company?.contact_info && company.contact_info.length > 0) {
+      return company.contact_info[0];
+    }
+    return {
+      email: "N/A",
+      phone: "N/A",
+      address: "N/A"
+    };
+  };
+
   if (loading) {
     return (
       <ScrollArea className="h-screen w-full bg-background">
@@ -101,12 +217,16 @@ export default function SuperAdminCompanyDetails() {
     );
   }
 
-  if (!company) {
+  if (error || !company) {
     return (
       <ScrollArea className="h-screen w-full bg-background">
         <div className="flex flex-col items-center justify-center h-[400px] w-full">
-          <h2 className="text-xl font-semibold text-muted-foreground mb-2">Company Not Found</h2>
-          <p className="text-muted-foreground mb-4">The requested company could not be found.</p>
+          <h2 className="text-xl font-semibold text-muted-foreground mb-2">
+            {error || "Company Not Found"}
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            {error || "The requested company could not be found."}
+          </p>
           <Button onClick={() => navigate("/super-admin")} className="cursor-pointer">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
@@ -116,15 +236,18 @@ export default function SuperAdminCompanyDetails() {
     );
   }
 
+  const contactInfo = getContactInfo();
+  const statusText = company.is_active ? "Active" : "Inactive";
+
   return (
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => navigate("/super-admin")}
               className="cursor-pointer"
             >
@@ -134,17 +257,17 @@ export default function SuperAdminCompanyDetails() {
             <div>
               <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
                 <Building className="w-6 h-6" />
-                {company.name}
+                {company.company_name}
               </h1>
               <p className="text-muted-foreground">Company Details & Fleet Management</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={getStatusColor(company.status)}>
-              {company.status.charAt(0).toUpperCase() + company.status.slice(1)}
+            <Badge className={getStatusColor(company.is_active)}>
+              {statusText}
             </Badge>
-            <Badge className={getPlanColor(company.plan)}>
-              {company.plan}
+            <Badge className={getPlanColor(company.subscription_plan)}>
+              {company.subscription_plan || 'Basic'}
             </Badge>
           </div>
         </div>
@@ -158,8 +281,8 @@ export default function SuperAdminCompanyDetails() {
                   <Car className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Vehicles</p>
-                  <p className="text-2xl font-bold text-foreground">{company.vehicleCount}</p>
+                  <p className="text-sm text-muted-foreground">Max Vehicles</p>
+                  <p className="text-2xl font-bold text-foreground">{company.max_vehicles || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -172,8 +295,8 @@ export default function SuperAdminCompanyDetails() {
                   <Users className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Users</p>
-                  <p className="text-2xl font-bold text-foreground">{company.userCount}</p>
+                  <p className="text-sm text-muted-foreground">Role</p>
+                  <p className="text-2xl font-bold text-foreground capitalize">{company.role}</p>
                 </div>
               </div>
             </CardContent>
@@ -182,14 +305,12 @@ export default function SuperAdminCompanyDetails() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                  <Activity className="w-5 h-5 text-green-600" />
+                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                  <Activity className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Vehicles</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {company.vehicles.filter((v: any) => v.status === "active").length}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Company Code</p>
+                  <p className="text-lg font-bold text-foreground">{company.company_code}</p>
                 </div>
               </div>
             </CardContent>
@@ -202,12 +323,15 @@ export default function SuperAdminCompanyDetails() {
                   <Calendar className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Member Since</p>
+                  <p className="text-sm text-muted-foreground">Created</p>
                   <p className="text-lg font-bold text-foreground">
-                    {new Date(company.joinedDate).toLocaleDateString("en-US", { 
-                      month: "short", 
-                      year: "numeric" 
-                    })}
+                    {company.created_at
+                      ? new Date(company.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        year: "numeric"
+                      })
+                      : "N/A"
+                    }
                   </p>
                 </div>
               </div>
@@ -217,7 +341,7 @@ export default function SuperAdminCompanyDetails() {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Company Information */}
           <Card>
             <CardHeader>
@@ -231,40 +355,42 @@ export default function SuperAdminCompanyDetails() {
                 <Mail className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{company.email}</p>
+                  <p className="font-medium">{contactInfo.email}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{company.phone}</p>
+                  <p className="font-medium">{contactInfo.phone}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
                 <div>
                   <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium">{company.address}</p>
+                  <p className="font-medium">{contactInfo.address}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Activity className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Last Activity</p>
-                  <p className="font-medium">{formatDate(company.lastActivity)}</p>
+                  <p className="text-sm text-muted-foreground">Last Updated</p>
+                  <p className="font-medium">
+                    {company.last_updated ? formatDate(company.last_updated) : "N/A"}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Fleet Vehicles */}
+          {/* Fleet Vehicles - Placeholder since we don't have vehicle data yet */}
           <Card className="lg:col-span-2">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Car className="w-5 h-5" />
-                  Fleet Vehicles ({company.vehicles.length})
+                  Fleet Vehicles ({vehicles.length})
                 </CardTitle>
                 <Button size="sm" className="cursor-pointer">
                   <Plus className="w-4 h-4 mr-2" />
@@ -273,43 +399,60 @@ export default function SuperAdminCompanyDetails() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {company.vehicles.map((vehicle: any) => (
-                  <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
+              {vehiclesLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : vehicles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+                  <Car className="w-12 h-12 mb-2 opacity-50" />
+                  <p>No vehicles registered yet</p>
+                  <p className="text-sm">Vehicles will appear here once added</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {vehicles.map((vehicle) => (
+                    <Card key={vehicle.id} className="p-3">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-3 h-3 rounded-full ${getStatusColor(vehicle.status).includes('green') ? 'bg-green-500' : vehicle.status === 'maintenance' ? 'bg-yellow-500' : 'bg-red-500'}`} />
-                          <div>
-                            <h4 className="font-semibold text-foreground">{vehicle.licensePlate}</h4>
-                            <p className="text-sm text-muted-foreground">{vehicle.model} ({vehicle.year})</p>
-                          </div>
+                        <div>
+                          <p className="font-semibold">{vehicle.plate}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Driver: {vehicle.driverName || "N/A"}
+                          </p>
                         </div>
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <Badge className={getStatusColor(vehicle.status)}>
-                              {vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
-                            </Badge>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Last seen: {formatDate(vehicle.lastSeen)}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button variant="outline" size="sm" className="cursor-pointer">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" className="cursor-pointer">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </div>
+                        <div className="flex gap-2">
+                          <Badge variant="secondary">{vehicle.status}</Badge>
+                          <Badge variant="outline">
+                            {vehicle.available_seats} seats
+                          </Badge>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* Additional Actions */}
+        <div className="flex items-center gap-4">
+          <Button variant="outline" className="cursor-pointer">
+            <Edit className="w-4 h-4 mr-2" />
+            Edit Company
+          </Button>
+          <Button variant="outline" className="cursor-pointer">
+            <Settings className="w-4 h-4 mr-2" />
+            Manage Settings
+          </Button>
+          <Button
+            variant="destructive"
+            className="cursor-pointer"
+            onClick={handleDeleteCompany}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Company
+          </Button>
         </div>
       </div>
     </ScrollArea>
