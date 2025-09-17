@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Eye, EyeOff, Car, Mail, Lock, User, Check, ArrowLeft, ArrowRight, BarChart3, Shield, Zap, Star, Building, Code, Phone, MapPin } from "lucide-react";
+import { Eye, EyeOff, Car, Mail, Lock, User, Check, ArrowLeft, ArrowRight, BarChart3, Shield, Zap, Star, Building, Code, Phone, MapPin, Upload, File, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +52,8 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [dragActive, setDragActive] = useState(false);
 
   const plans: SubscriptionPlan[] = [
     {
@@ -149,6 +151,15 @@ export default function Register() {
 
       setError("");
       setCurrentStep(3);
+    } else if (currentStep === 3) {
+      // Validate third step - Business Permit Upload
+      if (uploadedFiles.length === 0) {
+        setError("Please upload at least one business permit or validation document.");
+        return;
+      }
+
+      setError("");
+      setCurrentStep(4);
     }
   };
 
@@ -157,6 +168,58 @@ export default function Register() {
       setCurrentStep(1);
     } else if (currentStep === 3) {
       setCurrentStep(2);
+    } else if (currentStep === 4) {
+      setCurrentStep(3);
+    }
+  };
+
+  const handleFileUpload = (files: FileList | null) => {
+    if (!files) return;
+    
+    const validFiles = Array.from(files).filter(file => {
+      const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      
+      if (!validTypes.includes(file.type)) {
+        setError("Only PDF, JPEG, and PNG files are allowed.");
+        return false;
+      }
+      
+      if (file.size > maxSize) {
+        setError("File size must be less than 10MB.");
+        return false;
+      }
+      
+      return true;
+    });
+
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles]);
+      setError("");
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files);
     }
   };
 
@@ -166,6 +229,9 @@ export default function Register() {
     setError("");
 
     try {
+      // Create FormData to handle file uploads
+      const formDataWithFiles = new FormData();
+      
       const payload = {
         company_name: formData.companyName,
         company_code: formData.companyCode,
@@ -181,12 +247,17 @@ export default function Register() {
           selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1), // e.g. "Premium"
       };
 
+      // Add the main payload
+      formDataWithFiles.append('data', JSON.stringify(payload));
+      
+      // Add uploaded files
+      uploadedFiles.forEach((file, index) => {
+        formDataWithFiles.append(`business_documents`, file);
+      });
+
       const res = await fetch(`${apiBaseURL}/fleets/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: formDataWithFiles, // Send FormData instead of JSON
       });
 
       if (!res.ok) {
@@ -259,6 +330,11 @@ export default function Register() {
                       <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 3 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
                         }`}>
                         3
+                      </div>
+                      <div className={`w-12 h-0.5 ${currentStep >= 4 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 4 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
+                        }`}>
+                        4
                       </div>
                     </div>
                   </div>
@@ -396,7 +472,7 @@ export default function Register() {
                           <div className="text-center pt-4">
                             <span className="text-gray-400 text-sm">Already have an account? </span>
                             <a
-                              href="/login"
+                              href="/"
                               className="text-blue-400 hover:text-blue-300 text-sm font-medium hover:underline transition-colors"
                             >
                               Sign in
@@ -523,8 +599,135 @@ export default function Register() {
                         </form>
                       </CardContent>
                     </Card>
+                  ) : currentStep === 3 ? (
+                    // Step 3: Business Permit Upload
+                    <Card className="bg-black/40 backdrop-blur-xl border-none">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-white text-xl text-center">Business Validation</CardTitle>
+                        <CardDescription className="text-gray-400 text-center text-sm">
+                          Upload your business permit or validation documents
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6 pt-0">
+                        <div className="space-y-4">
+                          {/* File Upload Area */}
+                          <div
+                            className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${
+                              dragActive 
+                                ? "border-blue-500 bg-blue-500/10" 
+                                : "border-gray-600 hover:border-gray-500"
+                            }`}
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                          >
+                            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <div className="text-white font-medium mb-2">
+                              Drag and drop your files here
+                            </div>
+                            <div className="text-gray-400 text-sm mb-4">
+                              or click to browse
+                            </div>
+                            <input
+                              type="file"
+                              multiple
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={(e) => handleFileUpload(e.target.files)}
+                              className="hidden"
+                              id="file-upload"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-gray-600 text-white hover:bg-gray-700 cursor-pointer"
+                              onClick={() => document.getElementById('file-upload')?.click()}
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Choose Files
+                            </Button>
+                            <div className="text-xs text-gray-500 mt-2">
+                              Supported formats: PDF, JPEG, PNG (Max 10MB each)
+                            </div>
+                          </div>
+
+                          {/* Uploaded Files List */}
+                          {uploadedFiles.length > 0 && (
+                            <div className="space-y-2">
+                              <Label className="text-white text-sm font-medium">
+                                Uploaded Documents ({uploadedFiles.length})
+                              </Label>
+                              <div className="space-y-2 max-h-32 overflow-y-auto">
+                                {uploadedFiles.map((file, index) => (
+                                  <div key={index} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                      <File className="w-4 h-4 text-blue-400" />
+                                      <div>
+                                        <div className="text-white text-sm font-medium">{file.name}</div>
+                                        <div className="text-gray-400 text-xs">
+                                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeFile(index)}
+                                      className="text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Requirements Info */}
+                          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                            <div className="text-blue-400 font-medium text-sm mb-2">
+                              Required Documents:
+                            </div>
+                            <ul className="text-blue-300 text-xs space-y-1">
+                              <li>• Business permit or registration certificate</li>
+                              <li>• Tax identification document</li>
+                              <li>• Operating license (if applicable)</li>
+                              <li>• Other relevant business validation documents</li>
+                            </ul>
+                          </div>
+
+                          {/* Error Message */}
+                          {error && (
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                              <p className="text-red-400 text-sm text-center">{error}</p>
+                            </div>
+                          )}
+
+                          <div className="flex gap-3 mt-6">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={handlePrevStep}
+                              className="flex-1 border-gray-700 text-white hover:bg-gray-400 cursor-pointer"
+                            >
+                              Back
+                            </Button>
+
+                            <Button
+                              type="button"
+                              onClick={handleNextStep}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                            >
+                              <div className="flex items-center justify-center gap-2">
+                                Continue
+                                <ArrowRight className="w-4 h-4" />
+                              </div>
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ) : (
-                    // Step 3: Subscription Selection
+                    // Step 4: Subscription Selection
                     <Card className="bg-black/40 backdrop-blur-xl border-none">
                       <CardHeader className="pb-4">
                         <CardTitle className="text-white text-xl text-center">Choose Your Plan</CardTitle>

@@ -23,7 +23,7 @@ interface TopBarProps {
   title?: string;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ 
+export const SuperAdminTopBar: React.FC<TopBarProps> = ({ 
   className,
   title = "Dashboard"
 }) => {
@@ -78,21 +78,11 @@ export const TopBar: React.FC<TopBarProps> = ({
 };
 
 const UserProfileDropdown: React.FC<{ signOut: () => void; user: any }> = ({ signOut, user }) => {
-  const isSuperAdmin = user?.role === "super-admin";
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div className="flex items-center pr-2 rounded-lg transition-colors cursor-pointer">
-          {/* Only show avatar image if not super admin */}
-          {!isSuperAdmin && (
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face&auto=format"
-              alt="Profile"
-              className="w-9 h-9 rounded-full object-cover"
-            />
-          )}
-          <ChevronsUpDown className={`w-5 h-5 text-primary ${!isSuperAdmin ? 'ml-1' : ''}`} />
+          <ChevronsUpDown className="w-5 h-5 text-primary" />
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

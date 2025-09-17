@@ -10,9 +10,6 @@ export default function Settings() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [notifications, setNotifications] = useState(true);
-  const [theme, setTheme] = useState("light");
-  const [language, setLanguage] = useState("English");
 
   return (
     <ScrollArea className="bg-background h-screen w-full">
@@ -33,8 +30,8 @@ export default function Settings() {
               Save Changes
             </Button>
           </div>
-          <form id="settings-form" className="grid grid-cols-1 md:grid-cols-3 gap-12 items-start flex-1">
-            <div className="flex flex-col gap-7 justify-center h-full md:col-span-1">
+          <form id="settings-form" className="flex items-start flex-1">
+            <div className="flex flex-col gap-7 justify-center h-full max-w-md w-full">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="username">Username:</Label>
                 <Input
@@ -80,52 +77,6 @@ export default function Settings() {
                   onChange={e => setPassword(e.target.value)}
                   className="bg-card"
                 />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="notifications">Notifications:</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="notifications"
-                    type="checkbox"
-                    checked={notifications}
-                    onChange={e => setNotifications(e.target.checked)}
-                  />
-                  <span className="text-sm">Enable notifications</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="theme">Theme:</Label>
-                <select
-                  id="theme"
-                  value={theme}
-                  onChange={e => setTheme(e.target.value)}
-                  className="bg-card p-2 rounded"
-                >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="language">Language:</Label>
-                <select
-                  id="language"
-                  value={language}
-                  onChange={e => setLanguage(e.target.value)}
-                  className="bg-card p-2 rounded"
-                >
-                  <option value="English">English</option>
-                  <option value="Filipino">Filipino</option>
-                  <option value="Spanish">Spanish</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex flex-col gap-7 items-center justify-center h-full md:col-span-2">
-              <div className="flex flex-col gap-2 w-full mb-20">
-                <Label>Profile Image:</Label>
-                {/* You can add a FileUpload or Avatar component here for profile image */}
-                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                  <span>Avatar</span>
-                </div>
               </div>
             </div>
           </form>

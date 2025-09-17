@@ -2,6 +2,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Search,
   Filter,
@@ -15,7 +29,9 @@ import {
   User,
   Eye,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -47,6 +63,8 @@ export default function SuperAdminFleetManagement() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
   const [fleets, setFleets] = useState<any[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<any>({});
   const { token } = useUser();
 
   // Connect to the websocket
@@ -206,6 +224,70 @@ export default function SuperAdminFleetManagement() {
     }
   };
 
+  const handleEditFleet = (fleet: any) => {
+    setSelectedRegistration(fleet);
+    setEditForm({
+      companyName: fleet.companyName,
+      companyCode: fleet.companyCode,
+      contactInfo: fleet.contactInfo,
+      email: fleet.email,
+      phone: fleet.phone,
+      address: fleet.address,
+      selectedPlan: fleet.selectedPlan,
+      maxVehicles: fleet.maxVehicles,
+    });
+    setIsEditMode(true);
+  };
+
+  const handleSaveEdit = () => {
+    // Update the fleet in local state
+    setFleets(prev => 
+      prev.map(fleet => 
+        fleet.id === selectedRegistration.id 
+          ? { 
+              ...fleet, 
+              company_name: editForm.companyName,
+              company_code: editForm.companyCode,
+              contact_info: [{ 
+                name: editForm.contactInfo,
+                email: editForm.email,
+                phone: editForm.phone,
+                address: editForm.address
+              }],
+              subscription_plan: editForm.selectedPlan,
+              max_vehicles: editForm.maxVehicles,
+            }
+          : fleet
+      )
+    );
+    
+    // Update selectedRegistration to reflect changes
+    setSelectedRegistration({
+      ...selectedRegistration,
+      companyName: editForm.companyName,
+      companyCode: editForm.companyCode,
+      contactInfo: editForm.contactInfo,
+      email: editForm.email,
+      phone: editForm.phone,
+      address: editForm.address,
+      selectedPlan: editForm.selectedPlan,
+      maxVehicles: editForm.maxVehicles,
+    });
+    
+    setIsEditMode(false);
+    alert("Fleet updated successfully!");
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditForm({});
+  };
+
+  const handleDeleteFleet = (fleetId: string) => {
+    // Since there's no backend, just show an alert
+    alert(`Delete functionality not implemented yet for fleet ID: ${fleetId}`);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -356,7 +438,11 @@ export default function SuperAdminFleetManagement() {
                     const planInfo = getPlanInfo(registration.selectedPlan);
 
                     return (
-                      <tr key={registration.id} className="border-b border-border hover:bg-muted/50">
+                      <tr 
+                        key={registration.id} 
+                        className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => setSelectedRegistration(registration)}
+                      >
                         <td className="py-4 px-4">
                           <div className="flex flex-col">
                             <span className="font-medium text-foreground">{registration.companyName || "N/A"}</span>
@@ -392,172 +478,59 @@ export default function SuperAdminFleetManagement() {
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditFleet(registration);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="cursor-pointer"
-                                  onClick={() => setSelectedRegistration(registration)}
+                                  className="cursor-pointer text-red-600 hover:text-red-700"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent row click when opening delete dialog
+                                  }}
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle className="flex items-center gap-2">
-                                    <Building className="w-5 h-5" />
-                                    Registration Details - {registration.companyName || "N/A"}
-                                  </DialogTitle>
-                                  <DialogDescription>
-                                    Review the complete registration information
-                                  </DialogDescription>
-                                </DialogHeader>
-
-                                <div className="space-y-6">
-                                  {/* Company Information */}
-                                  <div>
-                                    <h3 className="text-lg font-semibold mb-3">Company Information</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="flex items-center gap-3">
-                                        <Building className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Company Name</span>
-                                          <p className="font-medium">{registration.companyName || "N/A"}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <span className="w-4 h-4 text-muted-foreground">#</span>
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Company Code</span>
-                                          <p className="font-medium">{registration.companyCode || "N/A"}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <User className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Contact Person</span>
-                                          <p className="font-medium">{registration.contactInfo}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <Phone className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Phone</span>
-                                          <p className="font-medium">{registration.phone}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-start gap-3 md:col-span-2">
-                                        <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Address</span>
-                                          <p className="font-medium">{registration.address}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <Mail className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Email</span>
-                                          <p className="font-medium">{registration.email || "N/A"}</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Subscription Plan */}
-                                  <div>
-                                    <h3 className="text-lg font-semibold mb-3">Selected Plan</h3>
-                                    <div className="border rounded-lg p-4">
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <Badge className={planInfo.color}>
-                                            {planInfo.name}
-                                          </Badge>
-                                          <p className="text-sm text-muted-foreground mt-1">
-                                            {registration.maxVehicles === -1
-                                              ? "Unlimited vehicles"
-                                              : `Up to ${registration.maxVehicles} vehicles`}
-                                          </p>
-                                        </div>
-                                        <div className="text-right">
-                                          <span className="text-2xl font-bold">${registration.planPrice || 0}</span>
-                                          <span className="text-muted-foreground">/month</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Submission Details */}
-                                  <div>
-                                    <h3 className="text-lg font-semibold mb-3">Submission Details</h3>
-                                    <div className="flex items-center gap-3">
-                                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Submitted</span>
-                                        <p className="font-medium">{formatDate(registration.submittedAt)}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Status Information */}
-                                  {registration.status === "approved" && (
-                                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                                      <div className="flex items-center gap-2">
-                                        <Check className="w-5 h-5 text-green-600" />
-                                        <span className="font-medium text-green-800 dark:text-green-300">Approved</span>
-                                      </div>
-                                      <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                                        Approved on {registration.approvedAt ? formatDate(registration.approvedAt) : "N/A"} by {registration.approvedBy || "Admin"}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {registration.status === "rejected" && (
-                                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                                      <div className="flex items-center gap-2">
-                                        <X className="w-5 h-5 text-red-600" />
-                                        <span className="font-medium text-red-800 dark:text-red-300">Rejected</span>
-                                      </div>
-                                      <p className="text-sm text-red-700 dark:text-red-400 mt-1">
-                                        Rejected on {registration.rejectedAt ? formatDate(registration.rejectedAt) : "N/A"} by {registration.rejectedBy || "Admin"}
-                                      </p>
-                                      {/* {registration.rejectionReason && (
-                                        <p className="text-sm text-red-700 dark:text-red-400 mt-2">
-                                          <strong>Reason:</strong> {registration.rejectionReason}
-                                        </p>
-                                      )} */}
-                                    </div>
-                                  )}
-
-                                  {/* Actions for pending registrations */}
-                                  {registration.status === "pending" && (
-                                    <div className="flex gap-3 pt-4 border-t">
-                                      <Button
-                                        onClick={() => handleApprove(registration.id)}
-                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"
-                                      >
-                                        <Check className="w-4 h-4 mr-2" />
-                                        Approve Registration
-                                      </Button>
-                                      <Button
-                                        onClick={() => handleReject(registration.id)}
-                                        variant="destructive"
-                                        className="flex-1 cursor-pointer"
-                                      >
-                                        <X className="w-4 h-4 mr-2" />
-                                        Reject Registration
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              </DialogContent>
-                            </Dialog>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Fleet Registration</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete the registration for "{registration.companyName}"? 
+                                    This action cannot be undone and will permanently remove the fleet from the system.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-red-600 hover:bg-red-700"
+                                    onClick={() => handleDeleteFleet(registration.id)}
+                                  >
+                                    Delete Fleet
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
 
                             {registration.status === "pending" && (
                               <>
                                 <Button
                                   size="sm"
-                                  onClick={() => handleApprove(registration.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleApprove(registration.id);
+                                  }}
                                   className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
                                 >
                                   <Check className="w-4 h-4" />
@@ -566,7 +539,10 @@ export default function SuperAdminFleetManagement() {
                                   size="sm"
                                   variant="destructive"
                                   className="cursor-pointer"
-                                  onClick={() => handleReject(registration.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReject(registration.id);
+                                  }}
                                 >
                                   <X className="w-4 h-4" />
                                 </Button>
@@ -594,6 +570,287 @@ export default function SuperAdminFleetManagement() {
             )}
           </CardContent>
         </Card>
+
+        {/* Fleet Registration Details Dialog */}
+        <Dialog 
+          open={selectedRegistration !== null} 
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedRegistration(null);
+              setIsEditMode(false);
+              setEditForm({});
+            }
+          }}
+        >
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            {selectedRegistration && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Building className="w-5 h-5" />
+                    {isEditMode ? `Edit Fleet - ${selectedRegistration.companyName || "N/A"}` : `Registration Details - ${selectedRegistration.companyName || "N/A"}`}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {isEditMode ? "Edit fleet registration information" : "Review the complete registration information"}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6">
+                  {/* Company Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Company Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3">
+                        <Building className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Company Name</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.companyName}
+                              onChange={(e) => setEditForm({...editForm, companyName: e.target.value})}
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedRegistration.companyName || "N/A"}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="w-4 h-4 text-muted-foreground">#</span>
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Company Code</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.companyCode}
+                              onChange={(e) => setEditForm({...editForm, companyCode: e.target.value})}
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedRegistration.companyCode || "N/A"}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Contact Person</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.contactInfo}
+                              onChange={(e) => setEditForm({...editForm, contactInfo: e.target.value})}
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedRegistration.contactInfo}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Phone</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.phone}
+                              onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedRegistration.phone}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 md:col-span-2">
+                        <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Address</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.address}
+                              onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedRegistration.address}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Email</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.email}
+                              onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedRegistration.email || "N/A"}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subscription Plan */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Selected Plan</h3>
+                    {isEditMode ? (
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="plan">Subscription Plan</Label>
+                          <Select
+                            value={editForm.selectedPlan}
+                            onValueChange={(value) => setEditForm({...editForm, selectedPlan: value})}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select plan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="basic">Basic</SelectItem>
+                              <SelectItem value="premium">Premium</SelectItem>
+                              <SelectItem value="enterprise">Enterprise</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="maxVehicles">Max Vehicles</Label>
+                          <Input
+                            type="number"
+                            value={editForm.maxVehicles}
+                            onChange={(e) => setEditForm({...editForm, maxVehicles: parseInt(e.target.value)})}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Badge className={getPlanInfo(selectedRegistration.selectedPlan).color}>
+                              {getPlanInfo(selectedRegistration.selectedPlan).name}
+                            </Badge>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {selectedRegistration.maxVehicles === -1
+                                ? "Unlimited vehicles"
+                                : `Up to ${selectedRegistration.maxVehicles} vehicles`}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold">${selectedRegistration.planPrice || 0}</span>
+                            <span className="text-muted-foreground">/month</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submission Details */}
+                  {!isEditMode && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">Submission Details</h3>
+                      <div className="flex items-center gap-3">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <span className="text-sm text-muted-foreground">Submitted</span>
+                          <p className="font-medium">{formatDate(selectedRegistration.submittedAt)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Status Information */}
+                  {!isEditMode && selectedRegistration.status === "approved" && (
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <Check className="w-5 h-5 text-green-600" />
+                        <span className="font-medium text-green-800 dark:text-green-300">Approved</span>
+                      </div>
+                      <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                        Approved on {selectedRegistration.approvedAt ? formatDate(selectedRegistration.approvedAt) : "N/A"} by {selectedRegistration.approvedBy || "Admin"}
+                      </p>
+                    </div>
+                  )}
+
+                  {!isEditMode && selectedRegistration.status === "rejected" && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <X className="w-5 h-5 text-red-600" />
+                        <span className="font-medium text-red-800 dark:text-red-300">Rejected</span>
+                      </div>
+                      <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                        Rejected on {selectedRegistration.rejectedAt ? formatDate(selectedRegistration.rejectedAt) : "N/A"} by {selectedRegistration.rejectedBy || "Admin"}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-4 border-t">
+                    {isEditMode ? (
+                      <>
+                        <Button 
+                          className="flex-1 cursor-pointer"
+                          onClick={handleSaveEdit}
+                        >
+                          Save Changes
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="flex-1 cursor-pointer"
+                          onClick={handleCancelEdit}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => {
+                            setEditForm({
+                              companyName: selectedRegistration.companyName,
+                              companyCode: selectedRegistration.companyCode,
+                              contactInfo: selectedRegistration.contactInfo,
+                              email: selectedRegistration.email,
+                              phone: selectedRegistration.phone,
+                              address: selectedRegistration.address,
+                              selectedPlan: selectedRegistration.selectedPlan,
+                              maxVehicles: selectedRegistration.maxVehicles,
+                            });
+                            setIsEditMode(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Fleet
+                        </Button>
+                        {selectedRegistration.status === "pending" && (
+                          <>
+                            <Button
+                              onClick={() => handleApprove(selectedRegistration.id)}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                            >
+                              <Check className="w-4 h-4 mr-2" />
+                              Approve Registration
+                            </Button>
+                            <Button
+                              onClick={() => handleReject(selectedRegistration.id)}
+                              variant="destructive"
+                              className="flex-1 cursor-pointer"
+                            >
+                              <X className="w-4 h-4 mr-2" />
+                              Reject Registration
+                            </Button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </ScrollArea>
   );

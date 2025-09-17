@@ -2,6 +2,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Search,
   Filter,
@@ -27,6 +30,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import AddIOTDeviceDialog from "@/components/add-iot-device-dialog";
 import { useUser } from "@/context/userContext";
 import { wsBaseURL } from "@/utils/api";
@@ -37,6 +51,8 @@ export default function SuperAdminIOTManagement() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedDevice, setSelectedDevice] = useState<any>(null);
   const [devices, setDevices] = useState<any[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<any>({});
 
   const { token } = useUser();
 
@@ -76,7 +92,6 @@ export default function SuperAdminIOTManagement() {
                       ? "maintenance"
                       : "offline",
                 lastUpdate: d.last_update || d.createdAt,
-                batteryLevel: 100,
                 signalStrength: d.is_active === "active" ? 90 : 0,
                 location: null,
                 assignedDate: d.createdAt,
@@ -131,7 +146,6 @@ export default function SuperAdminIOTManagement() {
 
   const handleDeleteDevice = async (deviceId: string) => {
     if (!deviceId) return alert("Device ID is missing!");
-    if (!confirm("Are you sure you want to delete this device?")) return;
 
     try {
       const response = await fetch(`${apiBaseURL}/iot_devices/${deviceId}`, {
@@ -162,6 +176,51 @@ export default function SuperAdminIOTManagement() {
     console.log("Device added successfully:", newDevice);
     // The WebSocket will automatically receive the updated devices list
     // and update the state accordingly
+  };
+
+  const handleEditDevice = (device: any) => {
+    setSelectedDevice(device);
+    setEditForm({
+      objectId: device.objectId,
+      deviceModel: device.deviceModel,
+      status: device.status,
+      companyName: device.companyName || "",
+    });
+    setIsEditMode(true);
+  };
+
+  const handleSaveEdit = () => {
+    // Update the device in local state
+    setDevices(prev => 
+      prev.map(device => 
+        device._id === selectedDevice._id 
+          ? { 
+              ...device, 
+              objectId: editForm.objectId,
+              deviceModel: editForm.deviceModel,
+              status: editForm.status,
+              companyName: editForm.companyName,
+            }
+          : device
+      )
+    );
+    
+    // Update selectedDevice to reflect changes
+    setSelectedDevice({
+      ...selectedDevice,
+      objectId: editForm.objectId,
+      deviceModel: editForm.deviceModel,
+      status: editForm.status,
+      companyName: editForm.companyName,
+    });
+    
+    setIsEditMode(false);
+    alert("Device updated successfully!");
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditForm({});
   };
 
   const filteredDevices = devices.filter((device) => {
@@ -212,12 +271,6 @@ export default function SuperAdminIOTManagement() {
       default:
         return <Activity className="w-4 h-4" />;
     }
-  };
-
-  const getBatteryColor = (level: number) => {
-    if (level > 50) return "text-green-600";
-    if (level > 20) return "text-yellow-600";
-    return "text-red-600";
   };
 
   const formatDate = (dateString: string) => {
@@ -331,7 +384,7 @@ export default function SuperAdminIOTManagement() {
           </div>
 
           {/* Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ">
             <Filter className="w-4 h-4 text-muted-foreground" />
             <select
               value={filterStatus}
@@ -373,14 +426,17 @@ export default function SuperAdminIOTManagement() {
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Model</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assignment</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Battery</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Update</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredDevices.map((device) => (
-                    <tr key={device._id} className="border-b border-border hover:bg-muted/50">
+                    <tr 
+                      key={device._id} 
+                      className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => setSelectedDevice(device)}
+                    >
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
                           <Cpu className="w-4 h-4 text-muted-foreground" />
@@ -410,14 +466,6 @@ export default function SuperAdminIOTManagement() {
                         </Badge>
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${getBatteryColor(device.batteryLevel)} bg-current`} />
-                          <span className={`text-sm font-medium ${getBatteryColor(device.batteryLevel)}`}>
-                            {device.batteryLevel}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
                         <div className="flex flex-col">
                           <span className="text-sm text-foreground">{formatDate(device.lastUpdate)}</span>
                           <span className="text-xs text-muted-foreground">{formatTimeSince(device.lastUpdate)}</span>
@@ -425,139 +473,50 @@ export default function SuperAdminIOTManagement() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="cursor-pointer"
-                                onClick={() => setSelectedDevice(device)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle className="flex items-center gap-2">
-                                  <Cpu className="w-5 h-5" />
-                                  Device Details - {device.objectId}
-                                </DialogTitle>
-                                <DialogDescription>
-                                  Complete information about this IOT device
-                                </DialogDescription>
-                              </DialogHeader>
-
-                              <div className="space-y-6">
-                                {/* Device Information */}
-                                <div>
-                                  <h3 className="text-lg font-semibold mb-3">Device Information</h3>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="flex items-center gap-3">
-                                      <Cpu className="w-4 h-4 text-muted-foreground" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Device Name</span>
-                                        <p className="font-medium">{device.objectId}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <Activity className="w-4 h-4 text-muted-foreground" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Model</span>
-                                        <p className="font-medium">{device.deviceModel}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <div className={`w-4 h-4 rounded-full ${getBatteryColor(device.batteryLevel)} bg-current`} />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Battery Level</span>
-                                        <p className={`font-medium ${getBatteryColor(device.batteryLevel)}`}>
-                                          {device.batteryLevel}%
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <Wifi className="w-4 h-4 text-muted-foreground" />
-                                      <div>
-                                        <span className="text-sm text-muted-foreground">Signal Strength</span>
-                                        <p className="font-medium">{device.signalStrength}%</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Assignment Information */}
-                                {device.vehicleId && (
-                                  <div>
-                                    <h3 className="text-lg font-semibold mb-3">Assignment Information</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="flex items-center gap-3">
-                                        <Building className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Company Assigned</span>
-                                          <p className="font-medium">{device.companyName}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <Clock className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <span className="text-sm text-muted-foreground">Assigned Date</span>
-                                          <p className="font-medium">{formatDate(device.assignedDate!)}</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Status Information */}
-                                <div>
-                                  <h3 className="text-lg font-semibold mb-3">Status Information</h3>
-                                  <div className="flex items-center gap-3 mb-4">
-                                    {getStatusIcon(device.status)}
-                                    <Badge className={getStatusColor(device.status)}>
-                                      {device.status.charAt(0).toUpperCase() + device.status.slice(1)}
-                                    </Badge>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <Clock className="w-4 h-4 text-muted-foreground" />
-                                    <div>
-                                      <span className="text-sm text-muted-foreground">Last Update</span>
-                                      <p className="font-medium">{formatDate(device.lastUpdate)}</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex gap-3 pt-4 border-t">
-                                  <Button className="flex-1 cursor-pointer">
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Edit Device
-                                  </Button>
-                                  {device.vehicleId ? (
-                                    <Button variant="outline" className="flex-1 cursor-pointer">
-                                      Unassign Device
-                                    </Button>
-                                  ) : (
-                                    <Button variant="outline" className="flex-1 cursor-pointer">
-                                      Assign to Vehicle
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-
-                          <Button variant="outline" size="sm" className="cursor-pointer">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditDevice(device);
+                            }}
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="cursor-pointer text-red-600 hover:text-red-700"
-                            onClick={() => handleDeleteDevice(device._id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="cursor-pointer text-red-600 hover:text-red-700"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent row click when opening delete dialog
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Device</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete device "{device.objectId}"? 
+                                  This action cannot be undone and will permanently remove the device from the system.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-red-600 hover:bg-red-700"
+                                  onClick={() => handleDeleteDevice(device._id)}
+                                >
+                                  Delete Device
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </td>
                     </tr>
@@ -579,6 +538,197 @@ export default function SuperAdminIOTManagement() {
             )}
           </CardContent>
         </Card>
+
+        {/* Device Details Dialog */}
+        <Dialog 
+          open={selectedDevice !== null} 
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedDevice(null);
+              setIsEditMode(false);
+              setEditForm({});
+            }
+          }}
+        >
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            {selectedDevice && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Cpu className="w-5 h-5" />
+                    {isEditMode ? `Edit Device - ${selectedDevice.objectId}` : `Device Details - ${selectedDevice.objectId}`}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {isEditMode ? "Edit device information" : "Complete information about this IOT device"}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6">
+                  {/* Device Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Device Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3">
+                        <Cpu className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Device Name</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.objectId}
+                              onChange={(e) => setEditForm({...editForm, objectId: e.target.value})}
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedDevice.objectId}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Activity className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Model</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.deviceModel}
+                              onChange={(e) => setEditForm({...editForm, deviceModel: e.target.value})}
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedDevice.deviceModel}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Wifi className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <span className="text-sm text-muted-foreground">Signal Strength</span>
+                          <p className="font-medium">{selectedDevice.signalStrength}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Assignment Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Assignment Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3">
+                        <Building className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <span className="text-sm text-muted-foreground">Company Assigned</span>
+                          {isEditMode ? (
+                            <Input
+                              value={editForm.companyName}
+                              onChange={(e) => setEditForm({...editForm, companyName: e.target.value})}
+                              placeholder="Enter company name or leave empty for unassigned"
+                              className="mt-1"
+                            />
+                          ) : (
+                            <p className="font-medium">{selectedDevice.companyName || "Unassigned"}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <span className="text-sm text-muted-foreground">Assigned Date</span>
+                          <p className="font-medium">{formatDate(selectedDevice.assignedDate!)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Status Information</h3>
+                    {isEditMode ? (
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="status">Device Status</Label>
+                          <Select
+                            value={editForm.status}
+                            onValueChange={(value) => setEditForm({...editForm, status: value})}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="online">Online</SelectItem>
+                              <SelectItem value="offline">Offline</SelectItem>
+                              <SelectItem value="maintenance">Maintenance</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 mb-4">
+                        {getStatusIcon(selectedDevice.status)}
+                        <Badge className={getStatusColor(selectedDevice.status)}>
+                          {selectedDevice.status.charAt(0).toUpperCase() + selectedDevice.status.slice(1)}
+                        </Badge>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mt-4">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <span className="text-sm text-muted-foreground">Last Update</span>
+                        <p className="font-medium">{formatDate(selectedDevice.lastUpdate)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-4 border-t">
+                    {isEditMode ? (
+                      <>
+                        <Button 
+                          className="flex-1 cursor-pointer"
+                          onClick={handleSaveEdit}
+                        >
+                          Save Changes
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="flex-1 cursor-pointer"
+                          onClick={handleCancelEdit}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => {
+                            setEditForm({
+                              objectId: selectedDevice.objectId,
+                              deviceModel: selectedDevice.deviceModel,
+                              status: selectedDevice.status,
+                              companyName: selectedDevice.companyName || "",
+                            });
+                            setIsEditMode(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Device
+                        </Button>
+                        {selectedDevice.vehicleId ? (
+                          <Button variant="outline" className="flex-1 cursor-pointer">
+                            Unassign Device
+                          </Button>
+                        ) : (
+                          <Button variant="outline" className="flex-1 cursor-pointer">
+                            Assign to Vehicle
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </ScrollArea>
   );

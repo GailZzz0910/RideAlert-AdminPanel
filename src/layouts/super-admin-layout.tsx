@@ -10,7 +10,7 @@ import {
   SidebarGroup,
   useSidebarContext,
 } from "../components/ui/side-bar";
-import { TopBar } from "../components/ui/top-bar";
+import { SuperAdminTopBar } from "../components/ui/super-admin-top-bar";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Shield, 
@@ -208,7 +208,7 @@ export default function SuperAdminLayout() {
           }}
         >
           {/* Top Bar */}
-          <TopBar title={getSuperAdminPageTitle(location.pathname)} />
+          <SuperAdminTopBar title={getSuperAdminPageTitle(location.pathname)} />
 
           {/* Page content */}
           <motion.main 
