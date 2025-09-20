@@ -175,21 +175,21 @@ export default function Register() {
 
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
-    
+
     const validFiles = Array.from(files).filter(file => {
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       const maxSize = 10 * 1024 * 1024; // 10MB
-      
+
       if (!validTypes.includes(file.type)) {
         setError("Only PDF, JPEG, and PNG files are allowed.");
         return false;
       }
-      
+
       if (file.size > maxSize) {
         setError("File size must be less than 10MB.");
         return false;
       }
-      
+
       return true;
     });
 
@@ -217,7 +217,7 @@ export default function Register() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileUpload(e.dataTransfer.files);
     }
@@ -231,7 +231,7 @@ export default function Register() {
     try {
       // Create FormData to handle file uploads
       const formDataWithFiles = new FormData();
-      
+
       const payload = {
         company_name: formData.companyName,
         company_code: formData.companyCode,
@@ -249,11 +249,17 @@ export default function Register() {
 
       // Add the main payload
       formDataWithFiles.append('data', JSON.stringify(payload));
-      
+
       // Add uploaded files
       uploadedFiles.forEach((file, index) => {
         formDataWithFiles.append(`business_documents`, file);
       });
+
+      if (uploadedFiles.length === 0) {
+        setError("Please upload at least one PDF");
+        setLoading(false);
+        return;
+      }
 
       const res = await fetch(`${apiBaseURL}/fleets/`, {
         method: "POST",
@@ -612,11 +618,10 @@ export default function Register() {
                         <div className="space-y-4">
                           {/* File Upload Area */}
                           <div
-                            className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${
-                              dragActive 
-                                ? "border-blue-500 bg-blue-500/10" 
+                            className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${dragActive
+                                ? "border-blue-500 bg-blue-500/10"
                                 : "border-gray-600 hover:border-gray-500"
-                            }`}
+                              }`}
                             onDragEnter={handleDrag}
                             onDragLeave={handleDrag}
                             onDragOver={handleDrag}
