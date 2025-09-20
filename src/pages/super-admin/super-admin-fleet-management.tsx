@@ -137,6 +137,7 @@ export default function SuperAdminFleetManagement() {
       approvedBy: fleet.role === "admin" ? "Admin" : null,
       rejectedAt: fleet.role === "rejected" ? fleet.last_updated : null,
       rejectedBy: fleet.role === "rejected" ? "Admin" : null,
+      pdf_files: fleet.pdf_files || []
     };
   });
 
@@ -241,26 +242,26 @@ export default function SuperAdminFleetManagement() {
 
   const handleSaveEdit = () => {
     // Update the fleet in local state
-    setFleets(prev => 
-      prev.map(fleet => 
-        fleet.id === selectedRegistration.id 
-          ? { 
-              ...fleet, 
-              company_name: editForm.companyName,
-              company_code: editForm.companyCode,
-              contact_info: [{ 
-                name: editForm.contactInfo,
-                email: editForm.email,
-                phone: editForm.phone,
-                address: editForm.address
-              }],
-              subscription_plan: editForm.selectedPlan,
-              max_vehicles: editForm.maxVehicles,
-            }
+    setFleets(prev =>
+      prev.map(fleet =>
+        fleet.id === selectedRegistration.id
+          ? {
+            ...fleet,
+            company_name: editForm.companyName,
+            company_code: editForm.companyCode,
+            contact_info: [{
+              name: editForm.contactInfo,
+              email: editForm.email,
+              phone: editForm.phone,
+              address: editForm.address
+            }],
+            subscription_plan: editForm.selectedPlan,
+            max_vehicles: editForm.maxVehicles,
+          }
           : fleet
       )
     );
-    
+
     // Update selectedRegistration to reflect changes
     setSelectedRegistration({
       ...selectedRegistration,
@@ -273,7 +274,7 @@ export default function SuperAdminFleetManagement() {
       selectedPlan: editForm.selectedPlan,
       maxVehicles: editForm.maxVehicles,
     });
-    
+
     setIsEditMode(false);
     alert("Fleet updated successfully!");
   };
@@ -309,6 +310,18 @@ export default function SuperAdminFleetManagement() {
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   };
+
+  useEffect(() => {
+    console.log("Raw fleets data:", fleets);
+    console.log("Transformed fleets:", transformedFleets);
+    transformedFleets.forEach(fleet => {
+      console.log(`Fleet ${fleet.companyName}:`, {
+        id: fleet.id,
+        pdf_files: fleet.pdf_files,
+        pdf_count: fleet.pdf_files?.length || 0
+      });
+    });
+  }, [fleets]);
 
   return (
     <ScrollArea className="h-screen w-full">
@@ -429,6 +442,7 @@ export default function SuperAdminFleetManagement() {
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Contact</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Plan</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Business Permit</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Submitted</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
@@ -438,8 +452,8 @@ export default function SuperAdminFleetManagement() {
                     const planInfo = getPlanInfo(registration.selectedPlan);
 
                     return (
-                      <tr 
-                        key={registration.id} 
+                      <tr
+                        key={registration.id}
                         className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
                         onClick={() => setSelectedRegistration(registration)}
                       >
@@ -471,6 +485,23 @@ export default function SuperAdminFleetManagement() {
                           </Badge>
                         </td>
                         <td className="py-4 px-4">
+                          {registration.pdf_files && registration.pdf_files.length > 0 ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const file = registration.pdf_files[0];
+                                window.open(`${apiBaseURL}/fleets/${registration.id}/pdf/${file.filename}`, "_blank");
+                              }}
+                            >
+                              View PDF
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No file</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4">
                           <div className="flex flex-col">
                             <span className="text-sm text-foreground">{formatDate(registration.submittedAt)}</span>
                             <span className="text-xs text-muted-foreground">{formatTimeSince(registration.submittedAt)}</span>
@@ -478,9 +509,9 @@ export default function SuperAdminFleetManagement() {
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -507,7 +538,7 @@ export default function SuperAdminFleetManagement() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Fleet Registration</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete the registration for "{registration.companyName}"? 
+                                    Are you sure you want to delete the registration for "{registration.companyName}"?
                                     This action cannot be undone and will permanently remove the fleet from the system.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -572,8 +603,8 @@ export default function SuperAdminFleetManagement() {
         </Card>
 
         {/* Fleet Registration Details Dialog */}
-        <Dialog 
-          open={selectedRegistration !== null} 
+        <Dialog
+          open={selectedRegistration !== null}
           onOpenChange={(open) => {
             if (!open) {
               setSelectedRegistration(null);
@@ -607,7 +638,7 @@ export default function SuperAdminFleetManagement() {
                           {isEditMode ? (
                             <Input
                               value={editForm.companyName}
-                              onChange={(e) => setEditForm({...editForm, companyName: e.target.value})}
+                              onChange={(e) => setEditForm({ ...editForm, companyName: e.target.value })}
                               className="mt-1"
                             />
                           ) : (
@@ -622,7 +653,7 @@ export default function SuperAdminFleetManagement() {
                           {isEditMode ? (
                             <Input
                               value={editForm.companyCode}
-                              onChange={(e) => setEditForm({...editForm, companyCode: e.target.value})}
+                              onChange={(e) => setEditForm({ ...editForm, companyCode: e.target.value })}
                               className="mt-1"
                             />
                           ) : (
@@ -637,7 +668,7 @@ export default function SuperAdminFleetManagement() {
                           {isEditMode ? (
                             <Input
                               value={editForm.contactInfo}
-                              onChange={(e) => setEditForm({...editForm, contactInfo: e.target.value})}
+                              onChange={(e) => setEditForm({ ...editForm, contactInfo: e.target.value })}
                               className="mt-1"
                             />
                           ) : (
@@ -652,7 +683,7 @@ export default function SuperAdminFleetManagement() {
                           {isEditMode ? (
                             <Input
                               value={editForm.phone}
-                              onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                               className="mt-1"
                             />
                           ) : (
@@ -667,7 +698,7 @@ export default function SuperAdminFleetManagement() {
                           {isEditMode ? (
                             <Input
                               value={editForm.address}
-                              onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                              onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                               className="mt-1"
                             />
                           ) : (
@@ -682,7 +713,7 @@ export default function SuperAdminFleetManagement() {
                           {isEditMode ? (
                             <Input
                               value={editForm.email}
-                              onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                               className="mt-1"
                             />
                           ) : (
@@ -702,7 +733,7 @@ export default function SuperAdminFleetManagement() {
                           <Label htmlFor="plan">Subscription Plan</Label>
                           <Select
                             value={editForm.selectedPlan}
-                            onValueChange={(value) => setEditForm({...editForm, selectedPlan: value})}
+                            onValueChange={(value) => setEditForm({ ...editForm, selectedPlan: value })}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select plan" />
@@ -719,7 +750,7 @@ export default function SuperAdminFleetManagement() {
                           <Input
                             type="number"
                             value={editForm.maxVehicles}
-                            onChange={(e) => setEditForm({...editForm, maxVehicles: parseInt(e.target.value)})}
+                            onChange={(e) => setEditForm({ ...editForm, maxVehicles: parseInt(e.target.value) })}
                             className="mt-1"
                           />
                         </div>
@@ -789,14 +820,14 @@ export default function SuperAdminFleetManagement() {
                   <div className="flex gap-3 pt-4 border-t">
                     {isEditMode ? (
                       <>
-                        <Button 
+                        <Button
                           className="flex-1 cursor-pointer"
                           onClick={handleSaveEdit}
                         >
                           Save Changes
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="flex-1 cursor-pointer"
                           onClick={handleCancelEdit}
                         >
@@ -805,7 +836,7 @@ export default function SuperAdminFleetManagement() {
                       </>
                     ) : (
                       <>
-                        <Button 
+                        <Button
                           className="flex-1 cursor-pointer"
                           onClick={() => {
                             setEditForm({
