@@ -311,18 +311,6 @@ export default function SuperAdminFleetManagement() {
     return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   };
 
-  useEffect(() => {
-    console.log("Raw fleets data:", fleets);
-    console.log("Transformed fleets:", transformedFleets);
-    transformedFleets.forEach(fleet => {
-      console.log(`Fleet ${fleet.companyName}:`, {
-        id: fleet.id,
-        pdf_files: fleet.pdf_files,
-        pdf_count: fleet.pdf_files?.length || 0
-      });
-    });
-  }, [fleets]);
-
   return (
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
