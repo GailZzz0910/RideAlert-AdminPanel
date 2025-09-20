@@ -236,6 +236,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAllFleetCompanies } from "./utils/useAllFleetCompanies";
+import { apiBaseURL } from "@/utils/api";
 
 export default function CompanyManagement() {
   const [searchValue, setSearchValue] = useState("");
@@ -256,7 +257,7 @@ export default function CompanyManagement() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/fleets/${companyId}`, {
+      const response = await fetch(`${apiBaseURL}/fleets/${companyId}`, {
         method: "DELETE",
       });
 
