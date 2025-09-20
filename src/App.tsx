@@ -48,9 +48,9 @@ function AppWithProviders() {
 
                         {/* Super Admin Dashboard */}
                         <Route path="/super-admin" element={
-                          
+                            <ProtectedRoute>
                                 <SuperAdminLayout />
-                          
+                            </ProtectedRoute>
                         }>
                             <Route index element={<SuperAdminDashboard />} />
                             <Route path="companies" element={<SuperAdminCompanies />} />
