@@ -42,8 +42,8 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
           {/* Header section */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg text-foreground leading-tight truncate">{title}</h3>
-               <p className="text-sm text-muted-foreground mt-1  truncate">{driver}</p>
+              <h3 className="font-semibold text-lg text-foreground leading-tight ">{title}</h3>
+               <p className="text-sm text-muted-foreground mt-1 ">{driver}</p>
              
             </div>
             <span className={cn(

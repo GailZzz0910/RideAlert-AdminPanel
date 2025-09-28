@@ -582,14 +582,15 @@ export default function Register() {
                           )}
 
                           <div className="flex gap-3 mt-6">
-                            <Button
-                              type="button"
-                              variant="outline"
+                             <Button
+                              type="submit"
                               onClick={handlePrevStep}
-                              className="flex-1 border-gray-700 text-white hover:bg-gray-400 cursor-pointer"
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
                             >
+                              <div className="flex items-center justify-center gap-2">
+                                Back
 
-                              Back
+                              </div>
                             </Button>
 
                             <Button
@@ -644,8 +645,7 @@ export default function Register() {
                             />
                             <Button
                               type="button"
-                              variant="outline"
-                              className="border-gray-600 text-white hover:bg-gray-700 cursor-pointer"
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
                               onClick={() => document.getElementById('file-upload')?.click()}
                             >
                               <Upload className="w-4 h-4 mr-2" />
@@ -710,9 +710,9 @@ export default function Register() {
                           <div className="flex gap-3 mt-6">
                             <Button
                               type="button"
-                              variant="outline"
                               onClick={handlePrevStep}
-                              className="flex-1 border-gray-700 text-white hover:bg-gray-400 cursor-pointer"
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+
                             >
                               Back
                             </Button>
@@ -792,9 +792,8 @@ export default function Register() {
                         <div className="flex gap-3 mt-6">
                           <Button
                             type="button"
-                            variant="outline"
                             onClick={handlePrevStep}
-                            className="flex-1 border-gray-700 text-white hover:bg-gray-400 cursor-pointer"
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
                           >
 
                             Back

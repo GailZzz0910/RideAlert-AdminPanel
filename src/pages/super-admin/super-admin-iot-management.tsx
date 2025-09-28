@@ -53,6 +53,16 @@ export default function SuperAdminIOTManagement() {
   const [devices, setDevices] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+  const [companies, setCompanies] = useState<any[]>([
+    { id: "1", name: "Tech Transport Co." },
+    { id: "2", name: "Metro Bus Services" },
+    { id: "3", name: "City Logistics Ltd." },
+    { id: "4", name: "Express Transit Inc." },
+    { id: "5", name: "Green Fleet Solutions" },
+    { id: "6", name: "Urban Mobility Corp." },
+    { id: "7", name: "Swift Delivery Services" },
+    { id: "8", name: "Regional Transport Authority" }
+  ]);
 
   const { token } = useUser();
 
@@ -144,6 +154,62 @@ export default function SuperAdminIOTManagement() {
     };
   }, []);
 
+  // Fetch companies for business reassignment
+  useEffect(() => {
+    let companiesWs: WebSocket | null = null;
+
+    const fetchCompanies = () => {
+      try {
+        companiesWs = new WebSocket(`${wsBaseURL}/fleets/ws/all?token=${token}`);
+
+        companiesWs.onopen = () => {
+          console.log("Companies WebSocket connected for IoT management");
+        };
+
+        companiesWs.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.fleets && Array.isArray(data.fleets)) {
+              const mappedCompanies = data.fleets.map((fleet: any) => ({
+                id: fleet.id,
+                name: fleet.company_name,
+              }));
+              setCompanies(mappedCompanies);
+            } else {
+              console.error("Unexpected companies WebSocket data format:", data);
+              setCompanies([]);
+            }
+          } catch (err) {
+            console.error("Error parsing companies WebSocket data:", err);
+            setCompanies([]);
+          }
+        };
+
+        companiesWs.onerror = (err) => {
+          console.error("Companies WebSocket error:", err);
+          setCompanies([]);
+        };
+
+        companiesWs.onclose = () => {
+          console.log("Companies WebSocket closed");
+        };
+      } catch (err) {
+        console.error("Failed to create companies WebSocket connection:", err);
+        setCompanies([]);
+      }
+    };
+
+    if (token) {
+      fetchCompanies();
+    }
+
+    return () => {
+      if (companiesWs) {
+        companiesWs.close();
+      }
+    };
+  }, [token]);
+
   const handleDeleteDevice = async (deviceId: string) => {
     if (!deviceId) return alert("Device ID is missing!");
 
@@ -180,16 +246,23 @@ export default function SuperAdminIOTManagement() {
 
   const handleEditDevice = (device: any) => {
     setSelectedDevice(device);
+    // Find the company ID based on company name
+    const company = companies.find(c => c.name === device.companyName);
     setEditForm({
       objectId: device.objectId,
       deviceModel: device.deviceModel,
       status: device.status,
+      companyId: company?.id || "unassigned",
       companyName: device.companyName || "",
     });
     setIsEditMode(true);
   };
 
   const handleSaveEdit = () => {
+    // Find the selected company object
+    const selectedCompany = editForm.companyId === "unassigned" ? null : companies.find(c => c.id === editForm.companyId);
+    const newCompanyName = selectedCompany ? selectedCompany.name : "";
+    
     // Update the device in local state
     setDevices(prev => 
       prev.map(device => 
@@ -199,7 +272,7 @@ export default function SuperAdminIOTManagement() {
               objectId: editForm.objectId,
               deviceModel: editForm.deviceModel,
               status: editForm.status,
-              companyName: editForm.companyName,
+              companyName: newCompanyName,
             }
           : device
       )
@@ -211,7 +284,7 @@ export default function SuperAdminIOTManagement() {
       objectId: editForm.objectId,
       deviceModel: editForm.deviceModel,
       status: editForm.status,
-      companyName: editForm.companyName,
+      companyName: newCompanyName,
     });
     
     setIsEditMode(false);
@@ -424,7 +497,7 @@ export default function SuperAdminIOTManagement() {
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Device Name</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Model</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assignment</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Company Assignment</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Update</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
@@ -615,14 +688,51 @@ export default function SuperAdminIOTManagement() {
                       <div className="flex items-center gap-3">
                         <Building className="w-4 h-4 text-muted-foreground" />
                         <div className="flex-1">
-                          <span className="text-sm text-muted-foreground">Company Assigned</span>
+                          <span className="text-sm text-muted-foreground">Business Assignment</span>
                           {isEditMode ? (
-                            <Input
-                              value={editForm.companyName}
-                              onChange={(e) => setEditForm({...editForm, companyName: e.target.value})}
-                              placeholder="Enter company name or leave empty for unassigned"
-                              className="mt-1"
-                            />
+                            <div className="mt-1">
+                              <Select
+                                value={editForm.companyId || "unassigned"}
+                                onValueChange={(value) => {
+                                  if (value === "unassigned") {
+                                    setEditForm({
+                                      ...editForm, 
+                                      companyId: "",
+                                      companyName: ""
+                                    });
+                                  } else {
+                                    const selectedCompany = companies.find(c => c.id === value);
+                                    setEditForm({
+                                      ...editForm, 
+                                      companyId: value,
+                                      companyName: selectedCompany ? selectedCompany.name : ""
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select business or leave unassigned" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                                  {companies.map((company) => (
+                                    <SelectItem key={company.id} value={company.id}>
+                                      {company.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {editForm.companyId && editForm.companyId !== "unassigned" && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Device will be assigned to: {companies.find(c => c.id === editForm.companyId)?.name}
+                                </p>
+                              )}
+                              {editForm.companyId === "unassigned" && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Device will be unassigned from any business
+                                </p>
+                              )}
+                            </div>
                           ) : (
                             <p className="font-medium">{selectedDevice.companyName || "Unassigned"}</p>
                           )}
@@ -700,10 +810,13 @@ export default function SuperAdminIOTManagement() {
                         <Button 
                           className="flex-1 cursor-pointer"
                           onClick={() => {
+                            // Find the company ID based on company name
+                            const company = companies.find(c => c.name === selectedDevice.companyName);
                             setEditForm({
                               objectId: selectedDevice.objectId,
                               deviceModel: selectedDevice.deviceModel,
                               status: selectedDevice.status,
+                              companyId: company?.id || "unassigned",
                               companyName: selectedDevice.companyName || "",
                             });
                             setIsEditMode(true);
@@ -712,15 +825,6 @@ export default function SuperAdminIOTManagement() {
                           <Edit className="w-4 h-4 mr-2" />
                           Edit Device
                         </Button>
-                        {selectedDevice.vehicleId ? (
-                          <Button variant="outline" className="flex-1 cursor-pointer">
-                            Unassign Device
-                          </Button>
-                        ) : (
-                          <Button variant="outline" className="flex-1 cursor-pointer">
-                            Assign to Vehicle
-                          </Button>
-                        )}
                       </>
                     )}
                   </div>

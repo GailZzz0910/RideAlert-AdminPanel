@@ -13,6 +13,7 @@ import AddVehicle from "./pages/fleet-admin/add-vehicle";
 import VehicleManagement from "./pages/fleet-admin/vehicle-management";
 import Settings from "./pages/fleet-admin/settings";
 import Map from "./pages/fleet-admin/map";
+import FleetAdminIOTManagement from "./pages/fleet-admin/iot-management";
 import SuperAdminDashboard from "./pages/super-admin/super-admin-dashboard";
 import SuperAdminCompanies from "./pages/super-admin/super-admin-companies";
 import SuperAdminFleetManagement from "./pages/super-admin/super-admin-fleet-management";
@@ -44,6 +45,7 @@ function AppWithProviders() {
                             <Route path="vehicle-management" element={<VehicleManagement />} />
                             <Route path="settings" element={<Settings />} />
                             <Route path="maps" element={<Map />} />
+                            <Route path="iot-management" element={<FleetAdminIOTManagement />} />
                         </Route>
 
                         {/* Super Admin Dashboard */}

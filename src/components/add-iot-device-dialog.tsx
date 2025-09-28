@@ -13,7 +13,6 @@ import {
   Plus,
   Cpu,
   Building,
-  Car,
   Activity,
   AlertCircle,
   CheckCircle,
@@ -36,17 +35,13 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
     deviceModel: "",
     assignmentType: "unassigned",
     selectedCompany: "",
-    selectedVehicle: "",
     notes: "",
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const { token } = useUser();
   const [companies, setCompanies] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
   const [deviceModels, setDeviceModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [vehicleLoading, setVehicleLoading] = useState(false); // New state for vehicle loading
-  const vehicleCache = useRef<Map<string, any[]>>(new Map()); // Cache for vehicle data
   const selectedCompanyObj = companies.find(c => c.id === formData.selectedCompany);
 
   // Debounce function to limit rapid WebSocket/REST calls
@@ -141,119 +136,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
     };
   }, [open, token]);
 
-  // Fetch vehicles via REST with WebSocket fallback
-  useEffect(() => {
-    let vehicleWs: WebSocket | null = null;
 
-    const fetchVehicles = async (fleetId: string) => {
-      if (!fleetId || formData.assignmentType !== "assigned") {
-        setVehicles([]);
-        setVehicleLoading(false);
-        return;
-      }
-
-      // Check cache first
-      if (vehicleCache.current.has(fleetId)) {
-        setVehicles(vehicleCache.current.get(fleetId)!);
-        setVehicleLoading(false);
-        return;
-      }
-
-      setVehicleLoading(true);
-
-      // Try REST endpoint first
-      try {
-        const res = await fetch(`${apiBaseURL}/vehicles/all/${fleetId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          throw new Error(`Failed to fetch vehicles via REST: ${res.statusText}`);
-        }
-        const vehiclesData = await res.json();
-        if (Array.isArray(vehiclesData)) {
-          const mappedVehicles = vehiclesData.map((vehicle: any) => ({
-            id: vehicle.id,
-            plate: vehicle.plate,
-            model: vehicle.route || "Unknown Model",
-            status: vehicle.status,
-            driverName: vehicle.driverName,
-            available_seats: vehicle.available_seats,
-            location: vehicle.location,
-          }));
-          const filteredVehicles = mappedVehicles.filter((v: any) => v.status === "available");
-          setVehicles(filteredVehicles);
-          vehicleCache.current.set(fleetId, filteredVehicles); // Cache the result
-        } else {
-          throw new Error("Unexpected REST vehicle data format");
-        }
-      } catch (restError) {
-        console.warn("REST fetch failed, falling back to WebSocket:", restError);
-
-        // Fallback to WebSocket
-        try {
-          vehicleWs = new WebSocket(`${wsBaseURL}/ws/vehicles/all/${fleetId}?token=${token}`);
-
-          vehicleWs.onopen = () => {
-            console.log("Vehicle WebSocket connected");
-          };
-
-          vehicleWs.onmessage = (event) => {
-            try {
-              const vehiclesData = JSON.parse(event.data);
-              if (Array.isArray(vehiclesData)) {
-                const mappedVehicles = vehiclesData.map((vehicle: any) => ({
-                  id: vehicle.id,
-                  plate: vehicle.plate,
-                  model: vehicle.route || "Unknown Model",
-                  status: vehicle.status,
-                  driverName: vehicle.driverName,
-                  available_seats: vehicle.available_seats,
-                  location: vehicle.location,
-                }));
-                const filteredVehicles = mappedVehicles.filter((v: any) => v.status === "available");
-                setVehicles(filteredVehicles);
-                vehicleCache.current.set(fleetId, filteredVehicles); // Cache the result
-              } else {
-                console.error("Unexpected vehicle WebSocket data format:", vehiclesData);
-                setVehicles([]);
-              }
-            } catch (err) {
-              console.error("Error parsing vehicle WebSocket data:", err);
-              setVehicles([]);
-            }
-            setVehicleLoading(false);
-          };
-
-          vehicleWs.onerror = (err) => {
-            console.error("Vehicle WebSocket error:", err);
-            setVehicles([]);
-            alert("Failed to load vehicles via WebSocket.");
-            setVehicleLoading(false);
-          };
-
-          vehicleWs.onclose = () => {
-            console.log("Vehicle WebSocket closed");
-          };
-        } catch (wsError) {
-          console.error("Error connecting to vehicle WebSocket:", wsError);
-          setVehicles([]);
-          alert("Failed to load vehicles. Please try again.");
-          setVehicleLoading(false);
-        }
-      }
-    };
-
-    // Debounced fetch to prevent rapid calls
-    const debouncedFetchVehicles = debounce(fetchVehicles, 300);
-
-    debouncedFetchVehicles(formData.selectedCompany);
-
-    return () => {
-      if (vehicleWs) {
-        vehicleWs.close();
-      }
-    };
-  }, [formData.selectedCompany, formData.assignmentType, token]);
 
   const resetForm = () => {
     setCurrentStep(1);
@@ -262,12 +145,9 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
       deviceModel: "",
       assignmentType: "unassigned",
       selectedCompany: "",
-      selectedVehicle: "",
       notes: "",
     });
     setErrors({});
-    setVehicles([]);
-    setVehicleLoading(false);
   };
 
   const handleClose = () => {
@@ -294,9 +174,6 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
       if (!formData.selectedCompany) {
         newErrors.selectedCompany = "Company selection is required";
       }
-      if (!formData.selectedVehicle) {
-        newErrors.selectedVehicle = "Vehicle selection is required";
-      }
     }
 
     setErrors(newErrors);
@@ -320,7 +197,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
         const payload = {
           device_name: formData.objectId,
           device_model: formData.deviceModel,
-          vehicle_id: formData.assignmentType === "assigned" ? formData.selectedVehicle : null,
+          company_id: formData.assignmentType === "assigned" ? formData.selectedCompany : null,
           company_name: selectedCompanyObj ? selectedCompanyObj.name : null,
           is_active: formData.assignmentType === "assigned" ? "active" : "inactive",
           notes: formData.notes,
@@ -349,8 +226,6 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
     }
   };
 
-  const availableVehicles = vehicles;
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -361,7 +236,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
             Add New IOT Device
           </DialogTitle>
           <DialogDescription>
-            Step {currentStep} of 3: {currentStep === 1 ? "Device Information" : currentStep === 2 ? "Assignment Settings" : "Review & Confirm"}
+            Step {currentStep} of 3: {currentStep === 1 ? "Device Information" : currentStep === 2 ? "Business Assignment" : "Review & Confirm"}
           </DialogDescription>
         </DialogHeader>
 
@@ -396,7 +271,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                     placeholder="e.g., IOT006, GPS-DEV-001"
                     value={formData.objectId}
                     onChange={(e) => setFormData({ ...formData, objectId: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent ${errors.objectId ? "border-red-500" : "border-input"}`}
+                    className={`bg-card w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent ${errors.objectId ? "border-red-500" : "border-input"}`}
                   />
                   {errors.objectId && <p className="text-sm text-red-600 mt-1">{errors.objectId}</p>}
                 </div>
@@ -416,7 +291,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                   {errors.deviceModel && <p className="text-sm text-red-600 mt-1">{errors.deviceModel}</p>}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div className="bg-card grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg">
                   <div className="text-center">
                     <Activity className="w-8 h-8 mx-auto mb-2 text-blue-600" />
                     <h4 className="font-medium">GPS Tracking</h4>
@@ -443,8 +318,8 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                   <label className="block text-sm font-medium mb-3">Assignment Type *</label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div
-                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${formData.assignmentType === "unassigned" ? "border-primary bg-primary/5" : "border-input hover:border-primary/50"}`}
-                      onClick={() => setFormData({ ...formData, assignmentType: "unassigned", selectedCompany: "", selectedVehicle: "" })}
+                      className={`bg-card p-4 border rounded-lg cursor-pointer transition-colors ${formData.assignmentType === "unassigned" ? "border-primary bg-primary/5" : "border-input hover:border-primary/50"}`}
+                      onClick={() => setFormData({ ...formData, assignmentType: "unassigned", selectedCompany: "" })}
                     >
                       <div className="flex items-center gap-3">
                         <Clock className="w-5 h-5 text-gray-600" />
@@ -456,14 +331,14 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                     </div>
 
                     <div
-                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${formData.assignmentType === "assigned" ? "border-primary bg-primary/5" : "border-input hover:border-primary/50"}`}
+                      className={`bg-card p-4 border rounded-lg cursor-pointer transition-colors ${formData.assignmentType === "assigned" ? "border-primary bg-primary/5" : "border-input hover:border-primary/50"}`}
                       onClick={() => setFormData({ ...formData, assignmentType: "assigned" })}
                     >
                       <div className="flex items-center gap-3">
-                        <Car className="w-5 h-5 text-blue-600" />
+                        <Building className="w-5 h-5 text-blue-600" />
                         <div>
-                          <h3 className="font-medium">Assign to Vehicle</h3>
-                          <p className="text-sm text-muted-foreground">Assign to a specific vehicle immediately</p>
+                          <h3 className="font-medium">Assign to Business</h3>
+                          <p className="text-sm text-muted-foreground">Assign to a specific business/company</p>
                         </div>
                       </div>
                     </div>
@@ -471,7 +346,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                 </div>
 
                 {formData.assignmentType === "assigned" && (
-                  <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                  <div className="space-y-4 p-4  bg-card rounded-lg">
                     {companies.length === 0 ? (
                       <div className="text-center py-4">
                         <Building className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
@@ -480,60 +355,31 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                         </p>
                       </div>
                     ) : (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Select Company *</label>
-                          <select
-                            value={formData.selectedCompany}
-                            onChange={(e) => setFormData({ ...formData, selectedCompany: e.target.value, selectedVehicle: "" })}
-                            className={`bg-background text-foreground w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent ${errors.selectedCompany ? "border-red-500" : "border-input"}`}
-                          >
-                            <option value="">Choose a company</option>
-                            {companies.map((company) => (
-                              <option key={company.id} value={company.id}>{company.name}</option>
-                            ))}
-                          </select>
-                          {errors.selectedCompany && <p className="text-sm text-red-600 mt-1">{errors.selectedCompany}</p>}
-                        </div>
-
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Select Business/Company *</label>
+                        <select
+                          value={formData.selectedCompany}
+                          onChange={(e) => setFormData({ ...formData, selectedCompany: e.target.value })}
+                          className={`bg-card text-foreground w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent ${errors.selectedCompany ? "border-red-500" : "border-input"}`}
+                        >
+                          <option value="">Choose a business/company</option>
+                          {companies.map((company) => (
+                            <option key={company.id} value={company.id}>{company.name}</option>
+                          ))}
+                        </select>
+                        {errors.selectedCompany && <p className="text-sm text-red-600 mt-1">{errors.selectedCompany}</p>}
+                        
                         {formData.selectedCompany && (
-                          <div>
-                            <label className="block text-sm font-medium mb-2">Select Vehicle *</label>
-                            <div className="space-y-2">
-                              {vehicleLoading ? (
-                                <div className="text-center py-4">
-                                  <Activity className="w-6 h-6 animate-spin mx-auto mb-2 text-muted-foreground" />
-                                  <p className="text-sm text-muted-foreground">Loading vehicles...</p>
-                                </div>
-                              ) : availableVehicles.length > 0 ? (
-                                availableVehicles.map((vehicle) => (
-                                  <div
-                                    key={vehicle.id}
-                                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${formData.selectedVehicle === vehicle.id.toString() ? "border-primary bg-primary/5" : "border-input hover:border-primary/50"}`}
-                                    onClick={() => setFormData({ ...formData, selectedVehicle: vehicle.id.toString() })}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-3">
-                                        <Car className="w-4 h-4 text-muted-foreground" />
-                                        <div>
-                                          <p className="font-medium">{vehicle.plate}</p>
-                                          <p className="text-sm text-muted-foreground">{vehicle.model}</p>
-                                        </div>
-                                      </div>
-                                      <Badge variant="outline" className="text-green-600">{vehicle.status}</Badge>
-                                    </div>
-                                  </div>
-                                ))
-                              ) : (
-                                <p className="text-sm text-muted-foreground text-center py-4">
-                                  No active vehicles available for this company
-                                </p>
-                              )}
+                          <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-800 dark:text-green-300">
+                                Device will be assigned to: {companies.find(c => c.id === formData.selectedCompany)?.name}
+                              </span>
                             </div>
-                            {errors.selectedVehicle && <p className="text-sm text-red-600 mt-1">{errors.selectedVehicle}</p>}
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
                   </div>
                 )}
@@ -543,7 +389,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
             {/* Step 3: Review & Confirm */}
             {currentStep === 3 && (
               <div className="space-y-4">
-                <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="p-4 bg-card rounded-lg">
                   <h3 className="font-medium mb-3">Device Summary</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center gap-3">
@@ -563,23 +409,14 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                   </div>
                 </div>
 
-                {formData.assignmentType === "assigned" && formData.selectedCompany && formData.selectedVehicle ? (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                {formData.assignmentType === "assigned" && formData.selectedCompany ? (
+                  <div className="p-4 bg-card rounded-lg">
                     <h3 className="font-medium mb-3">Assignment Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center gap-3">
-                        <Building className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <span className="text-sm text-muted-foreground">Company</span>
-                          <p className="font-medium">{companies.find(c => c.id === formData.selectedCompany)?.name || "Unknown Company"}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Car className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <span className="text-sm text-muted-foreground">Vehicle</span>
-                          <p className="font-medium">{availableVehicles.find(v => v.id === formData.selectedVehicle)?.plate || "Unknown Vehicle"}</p>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <Building className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <span className="text-sm text-muted-foreground">Business/Company</span>
+                        <p className="font-medium">{companies.find(c => c.id === formData.selectedCompany)?.name || "Unknown Company"}</p>
                       </div>
                     </div>
                   </div>
@@ -603,7 +440,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                     placeholder="Add any additional notes about this device..."
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
+                    className="bg-card w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
                     rows={3}
                   />
                 </div>
@@ -614,14 +451,14 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
             <div className="flex justify-between pt-4 border-t">
               <div>
                 {currentStep > 1 && (
-                  <Button variant="outline" onClick={handleBack} className="cursor-pointer">
+                  <Button variant="outline" onClick={handleBack} className="bg-card cursor-pointer">
                     Back
                   </Button>
                 )}
               </div>
 
               <div className="flex gap-3">
-                <Button variant="outline" onClick={handleClose} className="cursor-pointer">
+                <Button variant="outline" onClick={handleClose} className="bg-card cursor-pointer">
                   Cancel
                 </Button>
 
@@ -630,7 +467,7 @@ export default function AddIOTDeviceDialog({ children, onAddDevice }: AddIOTDevi
                     Next
                   </Button>
                 ) : (
-                  <Button onClick={handleSubmit} className="cursor-pointer">
+                  <Button onClick={handleSubmit} className="bg-card text-foreground cursor-pointer">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Device
                   </Button>

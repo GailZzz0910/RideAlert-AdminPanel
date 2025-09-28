@@ -17,8 +17,10 @@ import {
   Plus, 
   Car, 
   Settings,
+  Cpu
 } from "lucide-react";
 import { useUser } from "@/context/userContext";
+import logoImage from "@/assets/logo.png";
 
 // Memoized Logo component to prevent unnecessary re-renders
 const Logo = React.memo(() => {
@@ -28,8 +30,8 @@ const Logo = React.memo(() => {
   
   return (
     <div className="flex items-center space-x-3">
-      <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center flex-shrink-0">
-        <Car className="w-5 h-5 text-white" />
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0">
+        <img src={logoImage} alt="Logo" className="w-10 h-10 object-contain rounded-lg" />
       </div>
       <AnimatePresence>
         {showFullLogo && (
@@ -76,6 +78,13 @@ const useNavigationLinks = () => {
         href: "/dashboard/vehicle-management",
         icon: <Car className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/dashboard/vehicle-management",
+        badge: "12",
+      },
+      {
+        label: "IOT Management",
+        href: "/dashboard/iot-management",
+        icon: <Cpu className="w-5 h-5 text-sidebar-foreground" />,
+        isActive: location.pathname === "/dashboard/iot-management",
         badge: "12",
       },
     ];
