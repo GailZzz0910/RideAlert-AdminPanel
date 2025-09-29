@@ -28,146 +28,210 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useUser } from "@/context/userContext";
+import { wsBaseURL, apiBaseURL } from "@/utils/api";
 
 export default function FleetAdminIOTManagement() {
   const [searchValue, setSearchValue] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedDevice, setSelectedDevice] = useState<any>(null);
-  const [devices, setDevices] = useState<any[]>([
-    {
-      _id: "iot_001",
-      objectId: "GPS-TRACKER-001",
-      deviceModel: "GPS-Tracker-Pro-X1",
-      vehicleId: "vehicle_001",
-      vehiclePlate: "ABC-1234",
-      driverName: "John Doe",
-      companyName: "Tech Transport Co.",
-      isActive: true,
-      status: "online",
-      lastUpdate: "2025-09-22T10:30:00Z",
-      signalStrength: 95,
-      location: { lat: 14.5995, lng: 120.9842 },
-      assignedDate: "2025-09-01T08:00:00Z",
-    },
-    {
-      _id: "iot_002",
-      objectId: "GPS-TRACKER-002",
-      deviceModel: "GPS-Tracker-Lite-V2",
-      vehicleId: "vehicle_002",
-      vehiclePlate: "DEF-5678",
-      driverName: "Jane Smith",
-      companyName: "Tech Transport Co.",
-      isActive: false,
-      status: "offline",
-      lastUpdate: "2025-09-22T08:15:00Z",
-      signalStrength: 0,
-      location: null,
-      assignedDate: "2025-09-05T09:30:00Z",
-    },
-    {
-      _id: "iot_003",
-      objectId: "GPS-TRACKER-003",
-      deviceModel: "GPS-Tracker-Standard",
-      vehicleId: null,
-      vehiclePlate: null,
-      driverName: null,
-      companyName: "Tech Transport Co.",
-      isActive: false,
-      status: "maintenance",
-      lastUpdate: "2025-09-21T16:45:00Z",
-      signalStrength: 0,
-      location: null,
-      assignedDate: "2025-08-20T14:00:00Z",
-    },
-    {
-      _id: "iot_004",
-      objectId: "GPS-TRACKER-004",
-      deviceModel: "GPS-Tracker-Pro-X1",
-      vehicleId: "vehicle_003",
-      vehiclePlate: "GHI-9012",
-      driverName: "Mike Johnson",
-      companyName: "Tech Transport Co.",
-      isActive: true,
-      status: "online",
-      lastUpdate: "2025-09-22T11:00:00Z",
-      signalStrength: 88,
-      location: { lat: 14.6042, lng: 120.9822 },
-      assignedDate: "2025-09-10T07:15:00Z",
-    },
-    {
-      _id: "iot_005",
-      objectId: "GPS-TRACKER-005",
-      deviceModel: "GPS-Tracker-Lite-V2",
-      vehicleId: null,
-      vehiclePlate: null,
-      driverName: null,
-      companyName: "Tech Transport Co.",
-      isActive: false,
-      status: "offline",
-      lastUpdate: "2025-09-20T13:20:00Z",
-      signalStrength: 0,
-      location: null,
-      assignedDate: "2025-08-15T10:00:00Z",
-    },
-  ]);
-  const [vehicles, setVehicles] = useState<any[]>([
-    {
-      id: "vehicle_001",
-      plate: "ABC-1234",
-      model: "City Bus Route 1",
-      status: "active",
-      driverName: "John Doe",
-      available_seats: 50,
-      location: { lat: 14.5995, lng: 120.9842 },
-    },
-    {
-      id: "vehicle_002",
-      plate: "DEF-5678",
-      model: "Express Bus Route 2",
-      status: "active",
-      driverName: "Jane Smith",
-      available_seats: 45,
-      location: { lat: 14.6042, lng: 120.9822 },
-    },
-    {
-      id: "vehicle_003",
-      plate: "GHI-9012",
-      model: "Metro Bus Route 3",
-      status: "active",
-      driverName: "Mike Johnson",
-      available_seats: 55,
-      location: { lat: 14.5985, lng: 120.9862 },
-    },
-    {
-      id: "vehicle_004",
-      plate: "JKL-3456",
-      model: "Shuttle Bus Route 4",
-      status: "maintenance",
-      driverName: "Sarah Wilson",
-      available_seats: 30,
-      location: null,
-    },
-    {
-      id: "vehicle_005",
-      plate: "MNO-7890",
-      model: "Premium Bus Route 5",
-      status: "active",
-      driverName: "David Brown",
-      available_seats: 40,
-      location: { lat: 14.6012, lng: 120.9832 },
-    },
-  ]);
+  const [devices, setDevices] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
 
-  const { user } = useUser();
+  const { user, token } = useUser();
 
-  // Using dummy data - no backend calls needed
+  // Helper function to map vehicle information to devices
+  const mapDevicesWithVehicleInfo = (deviceList: any[], vehicleList: any[]) => {
+    return deviceList.map(device => {
+      if (device.vehicleId && device.vehicleId !== "None" && device.vehicleId !== null) {
+        const vehicle = vehicleList.find(v => v.id === device.vehicleId);
+        if (vehicle) {
+          return {
+            ...device,
+            vehiclePlate: vehicle.plate,
+            driverName: vehicle.driverName,
+          };
+        }
+      }
+      return {
+        ...device,
+        vehiclePlate: null,
+        driverName: null,
+      };
+    });
+  };
+
+  // Fetch vehicles for this fleet
   useEffect(() => {
-    console.log("Fleet Admin IoT Management loaded with dummy data");
-  }, []);
+    let vehiclesWs: WebSocket | null = null;
 
+    const fetchVehicles = () => {
+      try {
+        const fleetId = user?.id || user?.fleet_id;
+        if (!fleetId) {
+          console.error("No fleet ID found for user");
+          return;
+        }
 
+        vehiclesWs = new WebSocket(`${wsBaseURL}/vehicles/ws/vehicles/all/${fleetId}?token=${token}`);
+
+        vehiclesWs.onopen = () => {
+          console.log("Vehicles WebSocket connected for IoT management");
+        };
+
+        vehiclesWs.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.vehicles && Array.isArray(data.vehicles)) {
+              const mappedVehicles = data.vehicles.map((vehicle: any) => ({
+                id: vehicle.id,
+                plate: vehicle.plate,
+                model: `${vehicle.vehicle_type} - ${vehicle.route}`,
+                status: vehicle.status,
+                driverName: vehicle.driverName,
+                available_seats: vehicle.available_seats,
+                location: vehicle.location,
+                device_id: vehicle.device_id,
+              }));
+              setVehicles(mappedVehicles);
+
+              // Update devices with vehicle information whenever vehicles change
+              setDevices(prevDevices => mapDevicesWithVehicleInfo(prevDevices, mappedVehicles));
+            } else {
+              console.error("Unexpected vehicles WebSocket data format:", data);
+              setVehicles([]);
+            }
+          } catch (err) {
+            console.error("Error parsing vehicles WebSocket data:", err);
+            setVehicles([]);
+          }
+        };
+
+        vehiclesWs.onerror = (err) => {
+          console.error("Vehicles WebSocket error:", err);
+          setVehicles([]);
+        };
+
+        vehiclesWs.onclose = () => {
+          console.log("Vehicles WebSocket closed");
+        };
+      } catch (err) {
+        console.error("Failed to create vehicles WebSocket connection:", err);
+        setVehicles([]);
+      }
+    };
+
+    if (user && token) {
+      fetchVehicles();
+    }
+
+    return () => {
+      if (vehiclesWs) {
+        vehiclesWs.close();
+      }
+    };
+  }, [user, token]);
+
+  // Fetch IoT devices assigned to this company from backend
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 3000; // 3 seconds
+
+    const connectWebSocket = () => {
+      try {
+        ws = new WebSocket(`${wsBaseURL}/iot_devices/ws/all`);
+
+        ws.onopen = () => {
+          console.log("Connected to IoT WebSocket");
+          reconnectAttempts = 0;
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.devices) {
+              // Filter devices that are assigned to the current fleet's company
+              const fleetCompanyName = user?.company_name || user?.fleet?.company_name;
+              const filteredDevices = data.devices.filter((d: any) => {
+                return d.company_name === fleetCompanyName;
+              });
+
+              const mapped = filteredDevices.map((d: any) => ({
+                _id: typeof d._id === "string" ? d._id : d._id.$oid || String(d._id),
+                objectId: d.device_name,
+                deviceModel: d.device_model || "Unknown",
+                vehicleId: d.vehicle_id !== "None" && d.vehicle_id !== null ? d.vehicle_id : null,
+                vehiclePlate: null, // Will be populated by mapDevicesWithVehicleInfo
+                driverName: null, // Will be populated by mapDevicesWithVehicleInfo
+                companyName: d.company_name || null,
+                isActive: d.is_active === "active",
+                status:
+                  d.is_active === "active"
+                    ? "online"
+                    : d.is_active === "maintenance"
+                      ? "maintenance"
+                      : "offline",
+                lastUpdate: d.last_update || d.createdAt,
+                signalStrength: d.is_active === "active" ? 90 : 0,
+                location: null,
+                assignedDate: d.createdAt,
+                notes: d.notes || "",
+              }));
+
+              // Map vehicle information to devices
+              const devicesWithVehicleInfo = mapDevicesWithVehicleInfo(mapped, vehicles);
+              setDevices(devicesWithVehicleInfo);
+            }
+          } catch (err) {
+            console.error("Error parsing WebSocket message:", err);
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.error("WebSocket connection error. Check if backend is running on localhost:8000");
+          console.error("Error details:", err);
+        };
+
+        ws.onclose = (event) => {
+          console.log(`WebSocket closed: Code ${event.code}, Reason: ${event.reason || 'No reason'}`);
+
+          // Only attempt reconnection if it wasn't a manual close
+          if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts}) in ${reconnectDelay / 1000}s...`);
+
+            reconnectTimeout = setTimeout(() => {
+              connectWebSocket();
+            }, reconnectDelay);
+          } else if (reconnectAttempts >= maxReconnectAttempts) {
+            console.error("Max reconnection attempts reached. Please check your backend server and refresh the page.");
+          }
+        };
+
+      } catch (err) {
+        console.error("Failed to create WebSocket connection:", err);
+      }
+    };
+
+    // Initial connection
+    if (user && token) {
+      connectWebSocket();
+    }
+
+    // Cleanup function
+    return () => {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close(1000, "Component unmounting");
+      }
+    };
+  }, [user, token, vehicles]); // Added vehicles as dependency
 
   const handleEditDevice = (device: any) => {
     setSelectedDevice(device);
@@ -180,44 +244,51 @@ export default function FleetAdminIOTManagement() {
       vehicleId: vehicle?.id || "unassigned",
       vehiclePlate: device.vehiclePlate || "",
       driverName: device.driverName || "",
+      notes: device.notes || "",
     });
     setIsEditMode(true);
   };
 
   const handleSaveEdit = async () => {
+    if (!selectedDevice?._id) {
+      alert("No device selected for editing");
+      return;
+    }
+
     try {
       // Find the selected vehicle object
       const selectedVehicle = editForm.vehicleId === "unassigned" ? null : vehicles.find(v => v.id === editForm.vehicleId);
-      const newVehiclePlate = selectedVehicle ? selectedVehicle.plate : "";
-      const newDriverName = selectedVehicle ? selectedVehicle.driverName : "";
+      const newVehiclePlate = selectedVehicle ? selectedVehicle.plate : null;
+      const newDriverName = selectedVehicle ? selectedVehicle.driverName : null;
 
-      // Simulate API call with dummy data update
-      console.log("Updating device (dummy data):", {
+      // Prepare update payload
+      const updatePayload = {
         device_name: editForm.objectId,
         device_model: editForm.deviceModel,
         vehicle_id: editForm.vehicleId === "unassigned" ? null : editForm.vehicleId,
-        status: editForm.status,
+        is_active: editForm.status === "online" ? "active" : editForm.status === "maintenance" ? "maintenance" : "inactive",
+        notes: editForm.notes,
+      };
+
+      console.log("Updating device via API:", updatePayload);
+
+      // Make API call to update device
+      const response = await fetch(`${apiBaseURL}/iot_devices/${selectedDevice._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updatePayload),
       });
 
-      // Update the device in local state
-      setDevices(prev => 
-        prev.map(device => 
-          device._id === selectedDevice._id 
-            ? { 
-                ...device, 
-                objectId: editForm.objectId,
-                deviceModel: editForm.deviceModel,
-                status: editForm.status,
-                vehicleId: editForm.vehicleId === "unassigned" ? null : editForm.vehicleId,
-                vehiclePlate: newVehiclePlate,
-                driverName: newDriverName,
-              }
-            : device
-        )
-      );
-      
-      // Update selectedDevice to reflect changes
-      setSelectedDevice({
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to update device");
+      }
+
+      // Update selectedDevice immediately to reflect changes in the dialog
+      const updatedSelectedDevice = {
         ...selectedDevice,
         objectId: editForm.objectId,
         deviceModel: editForm.deviceModel,
@@ -225,10 +296,23 @@ export default function FleetAdminIOTManagement() {
         vehicleId: editForm.vehicleId === "unassigned" ? null : editForm.vehicleId,
         vehiclePlate: newVehiclePlate,
         driverName: newDriverName,
-      });
+        notes: editForm.notes,
+      };
+      
+      setSelectedDevice(updatedSelectedDevice);
+      
+      // The WebSocket will handle updating the devices list automatically
+      // But we can also update it locally to ensure immediate UI update
+      setDevices(prev => 
+        prev.map(device => 
+          device._id === selectedDevice._id 
+            ? updatedSelectedDevice
+            : device
+        )
+      );
       
       setIsEditMode(false);
-      alert("Device updated successfully! (Dummy data)");
+      alert("Device updated successfully!");
     } catch (err: any) {
       alert(`Error updating device: ${err.message}`);
       console.error(err);
@@ -728,6 +812,21 @@ export default function FleetAdminIOTManagement() {
                         </div>
                         <p className="font-medium text-foreground">{formatDate(selectedDevice.lastUpdate)}</p>
                       </div>
+
+                      {/* Notes section */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-muted-foreground">Notes</Label>
+                        {isEditMode ? (
+                          <Input
+                            value={editForm.notes}
+                            onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
+                            placeholder="Add notes about this device..."
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="font-medium text-foreground">{selectedDevice.notes || "No notes"}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -764,6 +863,7 @@ export default function FleetAdminIOTManagement() {
                               vehicleId: vehicle?.id || "unassigned",
                               vehiclePlate: selectedDevice.vehiclePlate || "",
                               driverName: selectedDevice.driverName || "",
+                              notes: selectedDevice.notes || "",
                             });
                             setIsEditMode(true);
                           }}
