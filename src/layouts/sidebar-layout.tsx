@@ -78,14 +78,13 @@ const useNavigationLinks = () => {
         href: "/dashboard/vehicle-management",
         icon: <Car className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/dashboard/vehicle-management",
-        badge: "12",
+        
       },
       {
         label: "IOT Management",
         href: "/dashboard/iot-management",
         icon: <Cpu className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/dashboard/iot-management",
-        badge: "12",
       },
     ];
 
