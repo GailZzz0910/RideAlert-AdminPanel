@@ -53,16 +53,7 @@ export default function SuperAdminIOTManagement() {
   const [devices, setDevices] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
-  const [companies, setCompanies] = useState<any[]>([
-    { id: "1", name: "Tech Transport Co." },
-    { id: "2", name: "Metro Bus Services" },
-    { id: "3", name: "City Logistics Ltd." },
-    { id: "4", name: "Express Transit Inc." },
-    { id: "5", name: "Green Fleet Solutions" },
-    { id: "6", name: "Urban Mobility Corp." },
-    { id: "7", name: "Swift Delivery Services" },
-    { id: "8", name: "Regional Transport Authority" }
-  ]);
+  const [companies, setCompanies] = useState<any[]>([]);
 
   const { token } = useUser();
 
@@ -154,7 +145,7 @@ export default function SuperAdminIOTManagement() {
     };
   }, []);
 
-  // Fetch companies for business reassignment
+  // Fetch companies for business assignment
   useEffect(() => {
     let companiesWs: WebSocket | null = null;
 
@@ -236,7 +227,6 @@ export default function SuperAdminIOTManagement() {
     }
   };
 
-
   const handleAddDevice = (newDevice: any) => {
     // Don't manually update state - let WebSocket handle it
     console.log("Device added successfully:", newDevice);
@@ -246,7 +236,7 @@ export default function SuperAdminIOTManagement() {
 
   const handleEditDevice = (device: any) => {
     setSelectedDevice(device);
-    // Find the company ID based on company name
+    // Find the company based on company name
     const company = companies.find(c => c.name === device.companyName);
     setEditForm({
       objectId: device.objectId,
@@ -258,37 +248,64 @@ export default function SuperAdminIOTManagement() {
     setIsEditMode(true);
   };
 
-  const handleSaveEdit = () => {
-    // Find the selected company object
-    const selectedCompany = editForm.companyId === "unassigned" ? null : companies.find(c => c.id === editForm.companyId);
-    const newCompanyName = selectedCompany ? selectedCompany.name : "";
-    
-    // Update the device in local state
-    setDevices(prev => 
-      prev.map(device => 
-        device._id === selectedDevice._id 
-          ? { 
-              ...device, 
-              objectId: editForm.objectId,
-              deviceModel: editForm.deviceModel,
-              status: editForm.status,
-              companyName: newCompanyName,
-            }
-          : device
-      )
-    );
-    
-    // Update selectedDevice to reflect changes
-    setSelectedDevice({
-      ...selectedDevice,
-      objectId: editForm.objectId,
-      deviceModel: editForm.deviceModel,
-      status: editForm.status,
-      companyName: newCompanyName,
-    });
-    
-    setIsEditMode(false);
-    alert("Device updated successfully!");
+  const handleSaveEdit = async () => {
+    try {
+      // Find the selected company object
+      const selectedCompany = editForm.companyId === "unassigned" ? null : companies.find(c => c.id === editForm.companyId);
+      const newCompanyName = selectedCompany ? selectedCompany.name : "";
+      
+      // Call backend API to update device
+      const updatePayload = {
+        device_name: editForm.objectId,
+        device_model: editForm.deviceModel,
+        is_active: editForm.status === "online" ? "active" : editForm.status === "maintenance" ? "maintenance" : "inactive",
+        company_name: newCompanyName || null,
+      };
+
+      const response = await fetch(`${apiBaseURL}/iot_devices/${selectedDevice._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updatePayload)
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "Failed to update device");
+      }
+
+      // Update the device in local state
+      setDevices(prev => 
+        prev.map(device => 
+          device._id === selectedDevice._id 
+            ? { 
+                ...device, 
+                objectId: editForm.objectId,
+                deviceModel: editForm.deviceModel,
+                status: editForm.status,
+                companyName: newCompanyName,
+              }
+            : device
+        )
+      );
+      
+      // Update selectedDevice to reflect changes
+      setSelectedDevice({
+        ...selectedDevice,
+        objectId: editForm.objectId,
+        deviceModel: editForm.deviceModel,
+        status: editForm.status,
+        companyName: newCompanyName,
+      });
+      
+      setIsEditMode(false);
+      alert("Device updated successfully!");
+    } catch (err: any) {
+      alert(`Error updating device: ${err.message}`);
+      console.error(err);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -307,8 +324,8 @@ export default function SuperAdminIOTManagement() {
 
     const matchesFilter =
       filterStatus === "all" ||
-      (filterStatus === "assigned" && device.vehicleId !== null) ||
-      (filterStatus === "unassigned" && device.vehicleId === null) ||
+      (filterStatus === "assigned" && device.companyName !== null) ||
+      (filterStatus === "unassigned" && device.companyName === null) ||
       (filterStatus === "online" && device.status === "online") ||
       (filterStatus === "offline" && device.status === "offline") ||
       (filterStatus === "maintenance" && device.status === "maintenance");
@@ -429,12 +446,12 @@ export default function SuperAdminIOTManagement() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gray-100 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-gray-600" />
+                  <Building className="w-5 h-5 text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Unassigned</p>
+                  <p className="text-sm text-muted-foreground">Company Assigned</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {devices.filter(d => d.vehicleId === null).length}
+                    {devices.filter(d => d.companyName !== null).length}
                   </p>
                 </div>
               </div>
@@ -465,7 +482,7 @@ export default function SuperAdminIOTManagement() {
               className="px-3 py-2 border border-input bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
             >
               <option value="all">All Status</option>
-              <option value="assigned">Assigned</option>
+              <option value="assigned">Company Assigned</option>
               <option value="unassigned">Unassigned</option>
               <option value="online">Online</option>
               <option value="offline">Offline</option>
@@ -520,7 +537,7 @@ export default function SuperAdminIOTManagement() {
                         <span className="text-foreground">{device.deviceModel}</span>
                       </td>
                       <td className="py-4 px-4">
-                        {device.vehicleId ? (
+                        {device.companyName ? (
                           <div className="flex flex-col">
                             <span className="font-medium text-foreground">{device.companyName}</span>
                           </div>
@@ -632,7 +649,7 @@ export default function SuperAdminIOTManagement() {
                     {isEditMode ? `Edit Device - ${selectedDevice.objectId}` : `Device Details - ${selectedDevice.objectId}`}
                   </DialogTitle>
                   <DialogDescription>
-                    {isEditMode ? "Edit device information" : "Complete information about this IOT device"}
+                    {isEditMode ? "Edit device information and company assignment" : "Complete information about this IOT device"}
                   </DialogDescription>
                 </DialogHeader>
 
@@ -681,14 +698,14 @@ export default function SuperAdminIOTManagement() {
                     </div>
                   </div>
 
-                  {/* Assignment Information */}
+                  {/* Company Assignment Information */}
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">Assignment Information</h3>
+                    <h3 className="text-lg font-semibold mb-3">Company Assignment</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex items-center gap-3">
                         <Building className="w-4 h-4 text-muted-foreground" />
                         <div className="flex-1">
-                          <span className="text-sm text-muted-foreground">Business Assignment</span>
+                          <span className="text-sm text-muted-foreground">Assigned Company</span>
                           {isEditMode ? (
                             <div className="mt-1">
                               <Select
@@ -711,7 +728,7 @@ export default function SuperAdminIOTManagement() {
                                 }}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select business or leave unassigned" />
+                                  <SelectValue placeholder="Select company or leave unassigned" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="unassigned">Unassigned</SelectItem>
@@ -729,7 +746,7 @@ export default function SuperAdminIOTManagement() {
                               )}
                               {editForm.companyId === "unassigned" && (
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Device will be unassigned from any business
+                                  Device will be unassigned from any company
                                 </p>
                               )}
                             </div>
@@ -810,7 +827,7 @@ export default function SuperAdminIOTManagement() {
                         <Button 
                           className="flex-1 cursor-pointer"
                           onClick={() => {
-                            // Find the company ID based on company name
+                            // Find the company based on company name
                             const company = companies.find(c => c.name === selectedDevice.companyName);
                             setEditForm({
                               objectId: selectedDevice.objectId,
