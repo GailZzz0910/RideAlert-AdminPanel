@@ -21,6 +21,7 @@ import {
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFleetVehicles } from "./utils/useFleetVehicle";
+import { wsBaseURL, apiBaseURL } from "@/utils/api";
 
 export default function SuperAdminCompanyDetails() {
   const { companyId } = useParams();
@@ -41,7 +42,7 @@ export default function SuperAdminCompanyDetails() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/fleets/${id}`, {
+      const response = await fetch(`${apiBaseURL}/fleets/${id}`, {
         method: "DELETE",
       });
 
@@ -73,7 +74,7 @@ export default function SuperAdminCompanyDetails() {
     const fetchCompanyHTTP = async () => {
       try {
         console.log("Fetching company with ID:", companyId);
-        const response = await fetch(`http://localhost:8000/fleets/${companyId}`);
+        const response = await fetch(`${apiBaseURL}/fleets/${companyId}`);
         if (response.ok) {
           const data = await response.json();
           console.log("Received company data via HTTP:", data);
