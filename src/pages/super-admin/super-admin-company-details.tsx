@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Building,
   Car,
-  ArrowLeft,
+  ChevronLeft,
   Mail,
   Phone,
   MapPin,
@@ -229,7 +229,7 @@ export default function SuperAdminCompanyDetails() {
             {error || "The requested company could not be found."}
           </p>
           <Button onClick={() => navigate("/super-admin")} className="cursor-pointer">
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ChevronLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Button>
         </div>
@@ -252,8 +252,7 @@ export default function SuperAdminCompanyDetails() {
               onClick={() => navigate("/super-admin")}
               className="cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+              <ChevronLeft className="w-4 h-4" />
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
@@ -438,14 +437,6 @@ export default function SuperAdminCompanyDetails() {
 
         {/* Additional Actions */}
         <div className="flex items-center gap-4">
-          <Button variant="outline" className="cursor-pointer">
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Company
-          </Button>
-          <Button variant="outline" className="cursor-pointer">
-            <Settings className="w-4 h-4 mr-2" />
-            Manage Settings
-          </Button>
           <Button
             variant="destructive"
             className="cursor-pointer"

@@ -11,6 +11,7 @@ import {
   useSidebarContext,
 } from "../components/ui/side-bar";
 import { SuperAdminTopBar } from "../components/ui/super-admin-top-bar";
+import { useUser } from "../context/userContext";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Shield, 
@@ -183,6 +184,19 @@ const getSuperAdminPageTitle = (pathname: string) => {
 
 export default function SuperAdminLayout() {
   const location = useLocation();
+  const { user } = useUser();
+
+  // Additional role check at layout level
+  if (user && user.role !== "superadmin") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
+          <p className="text-muted-foreground">This area is restricted to super administrators only.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider defaultOpen={false}>

@@ -152,6 +152,19 @@ const getPageTitle = (pathname: string) => {
 
 export default function NewDashboardLayout() {
   const location = useLocation();
+  const { user } = useUser();
+
+  // Additional role check at layout level
+  if (user && user.role !== "admin") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
+          <p className="text-muted-foreground">This area is restricted to fleet administrators only.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider defaultOpen={false}>

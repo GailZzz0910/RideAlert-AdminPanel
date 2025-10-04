@@ -34,9 +34,9 @@ function AppWithProviders() {
                         <Route path="/" element={<Landing />} />
                         <Route path="/register" element={<RegisterCompany />} />
                         
-                        {/* Regular Admin Dashboard */}
+                        {/* Regular Admin Dashboard - Only accessible by admin role */}
                         <Route path="/dashboard" element={
-                            <ProtectedRoute>
+                            <ProtectedRoute allowedRoles={["admin"]}>
                                 <NewDashboardLayout />
                             </ProtectedRoute>
                         }>
@@ -48,21 +48,21 @@ function AppWithProviders() {
                             <Route path="iot-management" element={<FleetAdminIOTManagement />} />
                         </Route>
 
-                        {/* Super Admin Dashboard */}
+                        {/* Super Admin Dashboard - Only accessible by superadmin role */}
                         <Route path="/super-admin" element={
-                            <ProtectedRoute>
+                            <ProtectedRoute allowedRoles={["superadmin"]}>
                                 <SuperAdminLayout />
                             </ProtectedRoute>
-                        }>
-                            <Route index element={<SuperAdminDashboard />} />
-                            <Route path="companies" element={<SuperAdminCompanies />} />
-                            <Route path="company/:companyId" element={<SuperAdminCompanyDetails />} />
-                            <Route path="fleet-management" element={<SuperAdminFleetManagement />} />
-                            <Route path="iot-management" element={<SuperAdminIOTManagement />} />
-                            <Route path="add-user" element={<div className="p-6">Add User Page - Coming Soon</div>} />
-                            <Route path="all-vehicles" element={<div className="p-6">All Vehicles Page - Coming Soon</div>} />
-                            <Route path="system-data" element={<div className="p-6">System Data Page - Coming Soon</div>} />
-                            <Route path="settings" element={<div className="p-6">Super Admin Settings - Coming Soon</div>} />
+                                }>
+                                    <Route index element={<SuperAdminDashboard />} />
+                                    <Route path="companies" element={<SuperAdminCompanies />} />
+                                    <Route path="company/:companyId" element={<SuperAdminCompanyDetails />} />
+                                    <Route path="fleet-management" element={<SuperAdminFleetManagement />} />
+                                    <Route path="iot-management" element={<SuperAdminIOTManagement />} />
+                                    <Route path="add-user" element={<div className="p-6">Add User Page - Coming Soon</div>} />
+                                    <Route path="all-vehicles" element={<div className="p-6">All Vehicles Page - Coming Soon</div>} />
+                                    <Route path="system-data" element={<div className="p-6">System Data Page - Coming Soon</div>} />
+                                    <Route path="settings" element={<div className="p-6">Super Admin Settings - Coming Soon</div>} />
                         </Route>
                     </Routes>
                 </Router>

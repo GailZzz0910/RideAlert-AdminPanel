@@ -1,10 +1,12 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { World } from "../ui/globe";
 import { FlipWords } from "../ui/flip-words";
 import { globeConfig, sampleArcs } from "../../data/globe-data";
 
 export default function HeroSection() {
-  // ...existing code...
+  const navigate = useNavigate();
+  
   return (
     <section className="min-h-screen w-full py-0 pt-25 px-0 relative flex items-center justify-center" id="hero">
       {/* Grid Background for whole hero section */}
@@ -42,7 +44,10 @@ export default function HeroSection() {
                 </div>
               </div>
               <div className="flex flex-row gap-4 w-full sm:w-auto justify-center lg:justify-start">
-                <button className="bg-white text-black px-4 py-2 sm:px-8 sm:py-4 rounded-xl font-mediumshadow-sm w-auto text-sm sm:text-base cursor-pointer">
+                <button 
+                  onClick={() => navigate('/register')}
+                  className="bg-white text-black px-4 py-2 sm:px-8 sm:py-4 rounded-xl font-mediumshadow-sm w-auto text-sm sm:text-base cursor-pointer"
+                >
                   Start Tracking
                 </button>
               </div>

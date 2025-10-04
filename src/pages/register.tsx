@@ -38,15 +38,20 @@ export default function Register() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
+    email: "",
+    otp: "",
     companyName: "",
     companyCode: "",
     contactInfo: "",
     phone: "",
     address: "",
-    email: "",
     password: "",
     confirmPassword: "",
   });
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
   const [selectedPlan, setSelectedPlan] = useState<string>("premium");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -122,20 +127,183 @@ export default function Register() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handle OTP digit input
+  const handleOtpChange = (index: number, value: string) => {
+    // Only allow digits
+    if (!/^\d*$/.test(value)) return;
+    
+    const newOtpDigits = [...otpDigits];
+    newOtpDigits[index] = value.slice(-1); // Only take the last character
+    setOtpDigits(newOtpDigits);
+    
+    // Update the combined OTP in formData
+    const combinedOtp = newOtpDigits.join("");
+    setFormData(prev => ({ ...prev, otp: combinedOtp }));
+    
+    // Auto-focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  // Handle backspace in OTP inputs
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      prevInput?.focus();
+    }
+  };
+
+  // Handle paste in OTP inputs
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const newDigits = Array(6).fill("").map((_, i) => pastedData[i] || "");
+    setOtpDigits(newDigits);
+    setFormData(prev => ({ ...prev, otp: newDigits.join("") }));
+    
+    // Focus the next empty input or the last one
+    const nextEmptyIndex = newDigits.findIndex(digit => digit === "");
+    const focusIndex = nextEmptyIndex === -1 ? 5 : Math.min(nextEmptyIndex, 5);
+    document.getElementById(`otp-${focusIndex}`)?.focus();
+  };
+
+  // Send OTP to email (Mock for testing)
+  const sendOTP = async () => {
+    if (!formData.email) {
+      setError("Please enter your email address.");
+      return;
+    }
+
+    setLoading(true);
+    
+    // Mock delay to simulate API call
+    setTimeout(() => {
+      setOtpSent(true);
+      setError("");
+      setLoading(false);
+      setCurrentStep(2); // Move to OTP verification step
+      
+      // Start cooldown for resend
+      setResendCooldown(60);
+      const timer = setInterval(() => {
+        setResendCooldown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+    }, 1500);
+
+    // TODO: Replace with actual API call when backend is ready
+    /*
+    try {
+      const response = await fetch(`${apiBaseURL}/fleets/send-verification-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || "Failed to send verification code");
+      }
+
+      setOtpSent(true);
+      setError("");
+      // Start cooldown for resend
+      setResendCooldown(60);
+      const timer = setInterval(() => {
+        setResendCooldown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+    */
+  };
+
+  // Verify OTP (Mock for testing)
+  const verifyOTP = async () => {
+    if (!formData.otp) {
+      setError("Please enter the verification code.");
+      return;
+    }
+
+    setLoading(true);
+    
+    // Mock verification - accept "123456" or any 6-digit code for testing
+    setTimeout(() => {
+      if (formData.otp === "123456" || formData.otp.length === 6) {
+        setOtpVerified(true);
+        setError("");
+        setCurrentStep(3); // Move to company info step
+      } else {
+        setError("Invalid verification code. Use 123456 for testing.");
+      }
+      setLoading(false);
+    }, 1000);
+
+    // TODO: Replace with actual API call when backend is ready
+    /*
+    try {
+      const response = await fetch(`${apiBaseURL}/fleets/verify-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          email: formData.email, 
+          verification_code: formData.otp 
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || "Invalid verification code");
+      }
+
+      setOtpVerified(true);
+      setError("");
+      setCurrentStep(3); // Move to company info step
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+    */
+  };
+
   const handleNextStep = () => {
     if (currentStep === 1) {
-      // Validate first step - Company Information
-      if (!formData.companyName || !formData.companyCode || !formData.contactInfo || !formData.phone || !formData.address) {
-        setError("Please fill in all company information fields.");
+      // Validate first step - Email Entry
+      if (!formData.email) {
+        setError("Please enter your email address.");
         return;
       }
 
-      setError("");
-      setCurrentStep(2);
+      // Send OTP and move to step 2
+      sendOTP();
     } else if (currentStep === 2) {
-      // Validate second step - Account Credentials
-      if (!formData.email || !formData.password || !formData.confirmPassword) {
-        setError("Please fill in all account credential fields.");
+      // Verify OTP
+      verifyOTP();
+    } else if (currentStep === 3) {
+      // Validate third step - Company Information & Password
+      if (!formData.companyName || !formData.companyCode || !formData.contactInfo || !formData.phone || !formData.address || !formData.password || !formData.confirmPassword) {
+        setError("Please fill in all required fields.");
         return;
       }
 
@@ -150,26 +318,31 @@ export default function Register() {
       }
 
       setError("");
-      setCurrentStep(3);
-    } else if (currentStep === 3) {
-      // Validate third step - Business Permit Upload
+      setCurrentStep(4);
+    } else if (currentStep === 4) {
+      // Validate fourth step - Business Permit Upload
       if (uploadedFiles.length === 0) {
         setError("Please upload at least one business permit or validation document.");
         return;
       }
 
       setError("");
-      setCurrentStep(4);
+      setCurrentStep(5);
     }
   };
 
   const handlePrevStep = () => {
     if (currentStep === 2) {
       setCurrentStep(1);
+      setOtpSent(false); // Reset OTP state when going back
+      setOtpDigits(["", "", "", "", "", ""]); // Reset OTP digits
+      setFormData(prev => ({ ...prev, otp: "" })); // Reset OTP in form data
     } else if (currentStep === 3) {
       setCurrentStep(2);
     } else if (currentStep === 4) {
       setCurrentStep(3);
+    } else if (currentStep === 5) {
+      setCurrentStep(4);
     }
   };
 
@@ -322,36 +495,195 @@ export default function Register() {
 
                   {/* Step Indicator */}
                   <div className="flex justify-center mb-6">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
                       <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 1 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
                         }`}>
                         1
                       </div>
-                      <div className={`w-12 h-0.5 ${currentStep >= 2 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                      <div className={`w-8 h-0.5 ${currentStep >= 2 ? "bg-blue-600" : "bg-gray-700"}`}></div>
                       <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 2 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
                         }`}>
                         2
                       </div>
-                      <div className={`w-12 h-0.5 ${currentStep >= 3 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                      <div className={`w-8 h-0.5 ${currentStep >= 3 ? "bg-blue-600" : "bg-gray-700"}`}></div>
                       <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 3 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
                         }`}>
                         3
                       </div>
-                      <div className={`w-12 h-0.5 ${currentStep >= 4 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                      <div className={`w-8 h-0.5 ${currentStep >= 4 ? "bg-blue-600" : "bg-gray-700"}`}></div>
                       <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 4 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
                         }`}>
                         4
+                      </div>
+                      <div className={`w-8 h-0.5 ${currentStep >= 5 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 5 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
+                        }`}>
+                        5
                       </div>
                     </div>
                   </div>
 
                   {currentStep === 1 ? (
-                    // Step 1: Company Information
+                    // Step 1: Email Entry
                     <Card className="bg-black/40 backdrop-blur-xl border-none">
                       <CardHeader className="pb-4">
-                        <CardTitle className="text-white text-xl text-center">Company Information</CardTitle>
+                        <CardTitle className="text-white text-xl text-center">Enter Your Email</CardTitle>
                         <CardDescription className="text-gray-400 text-center text-sm">
-                          Enter your company details
+                          We'll send you a verification code to get started
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6 pt-0">
+                        <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
+                          {/* Email Field */}
+                          <div className="space-y-2">
+                            <Label htmlFor="email" className="text-white text-sm font-medium">
+                              Email Address
+                            </Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                              <Input
+                                id="email"
+                                name="email"
+                                type="email"
+                                placeholder="john@company.com"
+                                value={formData.email}
+                                onChange={handleChange}
+                                className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                required
+                              />
+                            </div>
+                          </div>
+
+                          {/* Error Message */}
+                          {error && (
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                              <p className="text-red-400 text-sm text-center">{error}</p>
+                            </div>
+                          )}
+
+                          {/* Send Verification Button */}
+                          <Button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
+                          >
+                            {loading ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                Sending Code...
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-2">
+                                Send Code
+                              </div>
+                            )}
+                          </Button>
+
+                          {/* Login Link */}
+                          <div className="text-center pt-4">
+                            <span className="text-gray-400 text-sm">Already have an account? </span>
+                            <a
+                              href="/"
+                              className="text-blue-400 hover:text-blue-300 text-sm font-medium hover:underline transition-colors"
+                            >
+                              Sign in
+                            </a>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  ) : currentStep === 2 ? (
+                    // Step 2: Email Verification
+                    <Card className="bg-black/40 backdrop-blur-xl border-none">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-white text-xl text-center">Verify Your Email</CardTitle>
+                        <CardDescription className="text-gray-400 text-center text-sm">
+                          We've sent a verification code to {formData.email}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6 pt-0">
+                        <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
+                          {/* OTP Field */}
+                          <div className="space-y-2">
+                            <Label className="text-white text-sm font-medium text-center block">
+                              Verification Code
+                            </Label>
+                            <div className="flex justify-center gap-3">
+                              {otpDigits.map((digit, index) => (
+                                <Input
+                                  key={index}
+                                  id={`otp-${index}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  maxLength={1}
+                                  value={digit}
+                                  onChange={(e) => handleOtpChange(index, e.target.value)}
+                                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                                  onPaste={handleOtpPaste}
+                                  className="w-12 h-12 text-center text-xl font-bold text-white bg-white/10 border-white/20 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg transition-all duration-200"
+                                  autoComplete="off"
+                                />
+                              ))}
+                            </div>
+                            <p className="text-gray-400 text-xs text-center mt-2">
+                              Enter the 6-digit code sent to your email
+                            </p>
+                          </div>
+
+                          {/* Resend OTP */}
+                          <div className="text-center">
+                            <span className="text-gray-400 text-sm">Didn't receive the code? </span>
+                            <button
+                              type="button"
+                              onClick={sendOTP}
+                              disabled={resendCooldown > 0 || loading}
+                              className="text-blue-400 hover:text-blue-300 text-sm font-medium hover:underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
+                            </button>
+                          </div>
+
+                          {/* Error Message */}
+                          {error && (
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                              <p className="text-red-400 text-sm text-center">{error}</p>
+                            </div>
+                          )}
+
+                          <div className="flex gap-3 mt-6">
+                            <Button
+                              type="button"
+                              onClick={handlePrevStep}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                            >
+                              Back
+                            </Button>
+
+                            <Button
+                              type="submit"
+                              disabled={loading || formData.otp.length !== 6}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
+                            >
+                              {loading ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                  Verifying...
+                                </div>
+                              ) : (
+                                "Continue"
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  ) : currentStep === 3 ? (
+                    // Step 3: Company Information & Password
+                    <Card className="bg-black/40 backdrop-blur-xl border-none">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-white text-xl text-center">Company Details & Password</CardTitle>
+                        <CardDescription className="text-gray-400 text-center text-sm">
+                          Enter your company information and create your password
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="p-6 pt-0">
@@ -456,68 +788,6 @@ export default function Register() {
                             </div>
                           </div>
 
-                          {/* Error Message */}
-                          {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                              <p className="text-red-400 text-sm text-center">{error}</p>
-                            </div>
-                          )}
-
-                          {/* Next Button */}
-                          <Button
-                            type="submit"
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-                          >
-                            <div className="flex items-center justify-center gap-2">
-                              Continue
-                              <ArrowRight className="w-4 h-4" />
-                            </div>
-                          </Button>
-
-                          {/* Login Link */}
-                          <div className="text-center pt-4">
-                            <span className="text-gray-400 text-sm">Already have an account? </span>
-                            <a
-                              href="/"
-                              className="text-blue-400 hover:text-blue-300 text-sm font-medium hover:underline transition-colors"
-                            >
-                              Sign in
-                            </a>
-                          </div>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  ) : currentStep === 2 ? (
-                    // Step 2: Account Credentials
-                    <Card className="bg-black/40 backdrop-blur-xl border-none">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-white text-xl text-center">Account Credentials</CardTitle>
-                        <CardDescription className="text-gray-400 text-center text-sm">
-                          Set up your login credentials
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6 pt-0">
-                        <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
-                          {/* Email Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="email" className="text-white text-sm font-medium">
-                              Email Address
-                            </Label>
-                            <div className="relative">
-                              <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                placeholder="john@company.com"
-                                value={formData.email}
-                                onChange={handleChange}
-                                className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
-                                required
-                              />
-                            </div>
-                          </div>
-
                           {/* Password Field */}
                           <div className="space-y-2">
                             <Label htmlFor="password" className="text-white text-sm font-medium">
@@ -529,7 +799,7 @@ export default function Register() {
                                 id="password"
                                 name="password"
                                 type={showPassword ? "text" : "password"}
-                                placeholder="Enter your password"
+                                placeholder="Create a strong password"
                                 value={formData.password}
                                 onChange={handleChange}
                                 className="pl-10 pr-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
@@ -582,32 +852,26 @@ export default function Register() {
                           )}
 
                           <div className="flex gap-3 mt-6">
-                             <Button
-                              type="submit"
+                            <Button
+                              type="button"
                               onClick={handlePrevStep}
                               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
                             >
-                              <div className="flex items-center justify-center gap-2">
-                                Back
-
-                              </div>
+                              Back
                             </Button>
 
                             <Button
                               type="submit"
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
                             >
-                              <div className="flex items-center justify-center gap-2">
-                                Continue
-
-                              </div>
+                              Continue
                             </Button>
                           </div>
                         </form>
                       </CardContent>
                     </Card>
-                  ) : currentStep === 3 ? (
-                    // Step 3: Business Permit Upload
+                  ) : currentStep === 4 ? (
+                    // Step 4: Business Validation
                     <Card className="bg-black/40 backdrop-blur-xl border-none">
                       <CardHeader className="pb-4">
                         <CardTitle className="text-white text-xl text-center">Business Validation</CardTitle>
@@ -712,7 +976,6 @@ export default function Register() {
                               type="button"
                               onClick={handlePrevStep}
                               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-
                             >
                               Back
                             </Button>
@@ -732,7 +995,7 @@ export default function Register() {
                       </CardContent>
                     </Card>
                   ) : (
-                    // Step 4: Subscription Selection
+                    // Step 5: Subscription Selection
                     <Card className="bg-black/40 backdrop-blur-xl border-none">
                       <CardHeader className="pb-4">
                         <CardTitle className="text-white text-xl text-center">Choose Your Plan</CardTitle>
@@ -799,7 +1062,7 @@ export default function Register() {
                             Back
                           </Button>
 
-                          <Button
+                          <Button 
                             onClick={handleSubmit}
                             disabled={loading}
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"

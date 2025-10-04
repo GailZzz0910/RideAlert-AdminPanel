@@ -2,7 +2,17 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { useUser } from "../context/userContext";
 
-export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+  redirectTo?: string;
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  allowedRoles,
+  redirectTo = "/"
+}) => {
   const { user, loading } = useUser();
 
   // Show loading spinner while checking authentication
@@ -17,8 +27,16 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   }
 
+  // If not authenticated, redirect to login
   if (!user) {
     return <Navigate to="/" replace />;
+  }
+
+  // If roles are specified, check if user has the required role
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // Redirect based on user role to their appropriate dashboard
+    const userRedirect = user.role === "superadmin" ? "/super-admin" : "/dashboard";
+    return <Navigate to={userRedirect} replace />;
   }
 
   return <>{children}</>;
