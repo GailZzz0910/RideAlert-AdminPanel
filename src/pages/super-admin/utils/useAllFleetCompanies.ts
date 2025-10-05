@@ -22,7 +22,8 @@ export function useAllFleetCompanies() {
             status: f.is_active ? "active" : "inactive",
             plan: f.subscription_plan,
             vehiclesCount: f.max_vehicles ?? 0,
-            createdAt: f.created_at
+            createdAt: f.created_at,
+            role: f.role
           }));
           setFleets(mapped);
         }

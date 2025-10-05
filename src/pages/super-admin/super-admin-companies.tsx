@@ -251,7 +251,7 @@ export default function CompanyManagement() {
   };
 
 
-    const handleDeleteCompany = async (companyId: string) => {
+  const handleDeleteCompany = async (companyId: string) => {
     if (!confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
       return;
     }
@@ -292,7 +292,7 @@ export default function CompanyManagement() {
     // Update the company in local state
     // In a real app, this would make an API call
     console.log("Saving company changes:", editForm);
-    
+
     // Update selectedCompany to reflect changes
     setSelectedCompany({
       ...selectedCompany,
@@ -301,7 +301,7 @@ export default function CompanyManagement() {
       status: editForm.status,
       plan: editForm.plan,
     });
-    
+
     setIsEditMode(false);
     alert("Company updated successfully!");
   };
@@ -313,6 +313,11 @@ export default function CompanyManagement() {
 
 
   const filteredCompanies = fleets.filter((company: any) => {
+    // First, filter by role 'admin'
+    if (company.role !== 'admin') {
+      return false;
+    }
+
     const matchesSearch =
       company.name?.toLowerCase().includes(searchValue.toLowerCase()) ||
       company.contactEmail?.toLowerCase().includes(searchValue.toLowerCase());
@@ -324,6 +329,13 @@ export default function CompanyManagement() {
 
     return matchesSearch && matchesFilter;
   });
+
+  const totalAdminCompanies = fleets.filter((c: any) => c.role === 'admin').length;
+  const activeAdminCompanies = fleets.filter((c: any) => c.role === 'admin' && c.status === 'active').length;
+  const inactiveAdminCompanies = fleets.filter((c: any) => c.role === 'admin' && c.status === 'inactive').length;
+  const totalAdminVehicles = fleets
+    .filter((c: any) => c.role === 'admin')
+    .reduce((total: number, company: any) => total + (company.vehiclesCount || 0), 0);
 
   const getStatusColor = (status: string) =>
     status === "active"
@@ -380,7 +392,7 @@ export default function CompanyManagement() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Companies</p>
-                  <p className="text-2xl font-bold text-foreground">{fleets.length}</p>
+                  <p className="text-2xl font-bold text-foreground">{totalAdminCompanies}</p>
                 </div>
               </div>
             </CardContent>
@@ -395,7 +407,7 @@ export default function CompanyManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Active</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {fleets.filter((c: any) => c.status === "active").length}
+                    {activeAdminCompanies}
                   </p>
                 </div>
               </div>
@@ -411,7 +423,7 @@ export default function CompanyManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Inactive</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {fleets.filter((c: any) => c.status === "inactive").length}
+                    {inactiveAdminCompanies}
                   </p>
                 </div>
               </div>
@@ -427,7 +439,7 @@ export default function CompanyManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total Vehicles</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {fleets.reduce((total: number, company: any) => total + (company.vehiclesCount || 0), 0)}
+                    {totalAdminVehicles}
                   </p>
                 </div>
               </div>
@@ -494,8 +506,8 @@ export default function CompanyManagement() {
                 </thead>
                 <tbody>
                   {filteredCompanies.map((company: any, index: number) => (
-                    <tr 
-                      key={getCompanyKey(company, index)} 
+                    <tr
+                      key={getCompanyKey(company, index)}
                       className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => setSelectedCompany(company)}
                     >
@@ -548,9 +560,9 @@ export default function CompanyManagement() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -577,7 +589,7 @@ export default function CompanyManagement() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Company</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete company "{company.name}"? 
+                                  Are you sure you want to delete company "{company.name}"?
                                   This action cannot be undone and will permanently remove the company and all associated data.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
@@ -615,8 +627,8 @@ export default function CompanyManagement() {
         </Card>
 
         {/* Company Details Dialog */}
-        <Dialog 
-          open={selectedCompany !== null} 
+        <Dialog
+          open={selectedCompany !== null}
           onOpenChange={(open) => {
             if (!open) {
               setSelectedCompany(null);
@@ -650,7 +662,7 @@ export default function CompanyManagement() {
                           {isEditMode ? (
                             <Input
                               value={editForm.name}
-                              onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                               className="mt-1"
                             />
                           ) : (
@@ -665,7 +677,7 @@ export default function CompanyManagement() {
                           {isEditMode ? (
                             <Input
                               value={editForm.contactEmail}
-                              onChange={(e) => setEditForm({...editForm, contactEmail: e.target.value})}
+                              onChange={(e) => setEditForm({ ...editForm, contactEmail: e.target.value })}
                               className="mt-1"
                             />
                           ) : (
@@ -701,7 +713,7 @@ export default function CompanyManagement() {
                           <Label htmlFor="status">Company Status</Label>
                           <Select
                             value={editForm.status}
-                            onValueChange={(value) => setEditForm({...editForm, status: value})}
+                            onValueChange={(value) => setEditForm({ ...editForm, status: value })}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select status" />
@@ -716,7 +728,7 @@ export default function CompanyManagement() {
                           <Label htmlFor="plan">Subscription Plan</Label>
                           <Select
                             value={editForm.plan}
-                            onValueChange={(value) => setEditForm({...editForm, plan: value})}
+                            onValueChange={(value) => setEditForm({ ...editForm, plan: value })}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select plan" />
@@ -762,14 +774,14 @@ export default function CompanyManagement() {
                   <div className="flex gap-3 pt-4 border-t">
                     {isEditMode ? (
                       <>
-                        <Button 
+                        <Button
                           className="flex-1 cursor-pointer"
                           onClick={handleSaveEdit}
                         >
                           Save Changes
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="flex-1 cursor-pointer"
                           onClick={handleCancelEdit}
                         >
@@ -778,7 +790,7 @@ export default function CompanyManagement() {
                       </>
                     ) : (
                       <>
-                        <Button 
+                        <Button
                           className="flex-1 cursor-pointer"
                           onClick={() => {
                             setEditForm({
