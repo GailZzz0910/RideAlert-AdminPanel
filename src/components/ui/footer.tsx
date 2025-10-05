@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Twitter, Github, Linkedin, Mail } from "lucide-react";
+import { MapPin, Twitter, Github, Linkedin, Mail, Facebook } from "lucide-react";
 
 const Footer = () => {
   const footerLinks = {
@@ -30,10 +30,9 @@ const Footer = () => {
   };
 
   const socialLinks = [
-    { icon: Twitter, href: "#twitter", label: "Twitter" },
-    { icon: Github, href: "#github", label: "GitHub" },
-    { icon: Linkedin, href: "#linkedin", label: "LinkedIn" },
-    { icon: Mail, href: "#email", label: "Email" },
+    { icon: Facebook, href: "https://www.facebook.com/profile.php?id=61581074459011", label: "Facebook" },
+
+    { icon: Mail, href: "https://mail.google.com/mail/?view=cm&fs=1&to=ridealert2025@gmail.com", label: "Email" },
   ];
 
   return (
@@ -62,6 +61,8 @@ const Footer = () => {
                   <a
                     key={index}
                     href={social.href}
+                    target={social.href.startsWith('mailto:') ? '_self' : '_blank'}
+                    rel={social.href.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
                     className="w-10 h-10 rounded-lg bg-muted  flex items-center justify-center text-muted-foregroun transition-smooth"
                     aria-label={social.label}
                   >

@@ -392,10 +392,6 @@ export default function SuperAdminCompanyDetails() {
                   <Car className="w-5 h-5" />
                   Fleet Vehicles ({vehicles.length})
                 </CardTitle>
-                <Button size="sm" className="cursor-pointer">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Vehicle
-                </Button>
               </div>
             </CardHeader>
             <CardContent>

@@ -60,7 +60,10 @@ export default function NavBar() {
             >
               Sign In
             </button>
-            <button className="bg-blue-600 text-white font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors text-sm cursor-pointer">
+            <button 
+              onClick={() => window.open('https://drive.google.com/file/d/14YndAAm6Oej7FB80PldvphI2D04eO7jv/view?usp=sharing', '_blank')}
+              className="bg-blue-600 text-white font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors text-sm cursor-pointer"
+            >
               Download App
             </button>
           </div>
@@ -94,7 +97,10 @@ export default function NavBar() {
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setMenuOpen(false)}>
-                    <button className="bg-blue-600 text-white font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors text-lg mt-2 w-full">
+                    <button 
+                      onClick={() => window.open('https://drive.google.com/file/d/14YndAAm6Oej7FB80PldvphI2D04eO7jv/view?usp=sharing', '_blank')}
+                      className="bg-blue-600 text-white font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors text-lg mt-2 w-full"
+                    >
                       Download App
                     </button>
                   </DropdownMenuItem>

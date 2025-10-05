@@ -56,6 +56,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -124,7 +125,24 @@ export default function Register() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // For phone field, only allow numbers, spaces, parentheses, hyphens, and plus sign
+    if (name === 'phone') {
+      const originalLength = value.length;
+      const phoneValue = value.replace(/[^0-9\s\(\)\-\+]/g, '');
+      
+      // Check if invalid characters were removed
+      if (originalLength > phoneValue.length) {
+        setPhoneError("Only numbers and phone formatting characters (+, -, (), spaces) are allowed");
+        setTimeout(() => setPhoneError(""), 3000); // Clear error after 3 seconds
+      } else {
+        setPhoneError("");
+      }
+      
+      setFormData(prev => ({ ...prev, [name]: phoneValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   // Handle OTP digit input
@@ -759,13 +777,23 @@ export default function Register() {
                                 id="phone"
                                 name="phone"
                                 type="tel"
-                                placeholder="+1 (555) 123-4567"
+                                inputMode="tel"
+                                pattern="[0-9\s\(\)\-\+]*"
+                                placeholder="0912 345 6789"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                className={`pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 ${
+                                  phoneError ? 'border-red-500/50 focus:border-red-500' : ''
+                                }`}
                                 required
                               />
                             </div>
+                            {phoneError && (
+                              <div className="flex items-center gap-2 text-red-400 text-xs animate-pulse">
+                                <div className="w-1 h-1 bg-red-400 rounded-full"></div>
+                                {phoneError}
+                              </div>
+                            )}
                           </div>
 
                           {/* Address Field */}
