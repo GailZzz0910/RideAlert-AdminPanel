@@ -2,6 +2,11 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import api from "../utils/api";
 
+interface FleetInfo {
+  company_name?: string;
+  [key: string]: any;
+}
+
 interface User {
 	id: string;
 	company_name: string;
@@ -13,6 +18,9 @@ interface User {
 	role: string;
 	created_at: string;
 	last_updated: string;
+
+	fleet_id?: string;
+	fleet?: FleetInfo;
 }
 
 interface UserContextType {
@@ -64,7 +72,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 				setError("User account is prohibited from logging in.");
 				return false;
 			}
-			
+
 			setToken(access_token);
 			setUser(fleet);
 			localStorage.setItem("token", access_token);
