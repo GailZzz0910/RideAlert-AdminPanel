@@ -61,8 +61,10 @@ export default function SuperAdminCompanyDetails() {
     }
   };
 
+  // Remove the HTTP request part and rely only on WebSocket
   useEffect(() => {
     let isMounted = true;
+    let ws: WebSocket | null = null;
 
     if (!companyId) {
       setError("No company ID provided");
@@ -70,41 +72,9 @@ export default function SuperAdminCompanyDetails() {
       return;
     }
 
-    // Try HTTP request first since it's more reliable
-    const fetchCompanyHTTP = async () => {
+    const connectWebSocket = () => {
       try {
-        console.log("Fetching company with ID:", companyId);
-        const response = await fetch(`${apiBaseURL}/fleets/${companyId}`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Received company data via HTTP:", data);
-          if (isMounted) {
-            setCompany(data);
-            setLoading(false);
-          }
-        } else if (response.status === 404) {
-          if (isMounted) {
-            setError("Company not found");
-            setLoading(false);
-          }
-        } else {
-          throw new Error(`HTTP ${response.status}`);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error("HTTP request failed:", err);
-          // Try WebSocket as fallback
-          tryWebSocket();
-        }
-      }
-    };
-
-    // WebSocket fallback function
-    const tryWebSocket = () => {
-      let ws: WebSocket | null = null;
-
-      try {
-        ws = new WebSocket(`ws://localhost:8000/fleets/${companyId}/ws`);
+        ws = new WebSocket(`${wsBaseURL}/fleets/${companyId}/ws`);
 
         ws.onopen = () => {
           if (isMounted) {
@@ -122,6 +92,10 @@ export default function SuperAdminCompanyDetails() {
               setError(data.error);
               setLoading(false);
             } else {
+              console.log("Company data received:", data);
+              console.log("max_vehicles value:", data.max_vehicles);
+              console.log("All company fields:", Object.keys(data));
+
               setCompany(data);
               setLoading(false);
             }
@@ -152,20 +126,16 @@ export default function SuperAdminCompanyDetails() {
           setLoading(false);
         }
       }
-
-      // Cleanup function for WebSocket
-      return () => {
-        if (ws) {
-          ws.close();
-        }
-      };
     };
 
-    // Start with HTTP request
-    fetchCompanyHTTP();
+    // Start WebSocket connection
+    connectWebSocket();
 
     return () => {
       isMounted = false;
+      if (ws) {
+        ws.close();
+      }
     };
   }, [companyId]);
 
