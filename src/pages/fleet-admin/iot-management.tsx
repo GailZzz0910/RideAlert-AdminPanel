@@ -261,16 +261,20 @@ export default function FleetAdminIOTManagement() {
       const newVehiclePlate = selectedVehicle ? selectedVehicle.plate : null;
       const newDriverName = selectedVehicle ? selectedVehicle.driverName : null;
 
-      // Prepare update payload
+      // Prepare update payload for IoT device
+      const vehicleIdForIoT = editForm.vehicleId === "unassigned" ? null : editForm.vehicleId;
       const updatePayload = {
         device_name: editForm.objectId,
         device_model: editForm.deviceModel,
-        vehicle_id: editForm.vehicleId === "unassigned" ? null : editForm.vehicleId,
+        vehicle_id: vehicleIdForIoT,
         is_active: editForm.status === "online" ? "active" : editForm.status === "maintenance" ? "maintenance" : "inactive",
         notes: editForm.notes,
       };
 
-      console.log("Updating device via API:", updatePayload);
+      console.log("=== DEBUG: Starting device update ===");
+      console.log("Device ID:", selectedDevice._id);
+      console.log("Vehicle ID for IoT:", vehicleIdForIoT);
+      console.log("Update payload:", updatePayload);
 
       // Make API call to update device
       const response = await fetch(`${apiBaseURL}/iot_devices/${selectedDevice._id}`, {
@@ -282,9 +286,69 @@ export default function FleetAdminIOTManagement() {
         body: JSON.stringify(updatePayload),
       });
 
+      console.log("IoT device update response status:", response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("IoT device update error:", errorData);
         throw new Error(errorData.detail || "Failed to update device");
+      }
+
+      const updatedDevice = await response.json();
+      console.log("IoT device update successful:", updatedDevice);
+
+      // Update vehicle's device_id using the correct endpoint
+      if (editForm.vehicleId && editForm.vehicleId !== "unassigned") {
+        console.log("=== DEBUG: Starting vehicle device assignment ===");
+        console.log("Vehicle ID:", editForm.vehicleId);
+        console.log("Device ID to assign:", selectedDevice._id);
+
+        // First, remove device_id from any vehicle that currently has this device assigned
+        const currentVehicleWithThisDevice = vehicles.find(v => v.device_id === selectedDevice._id);
+        if (currentVehicleWithThisDevice && currentVehicleWithThisDevice.id !== editForm.vehicleId) {
+          console.log(`Removing device from current vehicle: ${currentVehicleWithThisDevice.id}`);
+          const removeResponse = await fetch(`${apiBaseURL}/vehicles/assign-device/${currentVehicleWithThisDevice.id}?device_id=`, {
+            method: "PUT",
+            headers: {
+              "Authorization": `Bearer ${token}`
+            },
+          });
+          console.log("Remove device response status:", removeResponse.status);
+        }
+
+        // Then assign the device to the new vehicle
+        console.log(`Assigning device to new vehicle: ${editForm.vehicleId}`);
+        const assignResponse = await fetch(`${apiBaseURL}/vehicles/assign-device/${editForm.vehicleId}?device_id=${selectedDevice._id}`, {
+          method: "PUT",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+        });
+
+        console.log("Assign device response status:", assignResponse.status);
+
+        if (!assignResponse.ok) {
+          const errorData = await assignResponse.json();
+          console.error("Vehicle device assignment failed:", errorData);
+          throw new Error(`Vehicle assignment failed: ${errorData.detail || 'Unknown error'}`);
+        } else {
+          console.log("Vehicle device assignment successful");
+          const assignResult = await assignResponse.json();
+          console.log("Assignment result:", assignResult);
+        }
+      } else {
+        // If unassigning, remove device_id from any vehicle that has this device
+        const currentVehicleWithThisDevice = vehicles.find(v => v.device_id === selectedDevice._id);
+        if (currentVehicleWithThisDevice) {
+          console.log(`Unassigning device from vehicle: ${currentVehicleWithThisDevice.id}`);
+          const unassignResponse = await fetch(`${apiBaseURL}/vehicles/assign-device/${currentVehicleWithThisDevice.id}?device_id=`, {
+            method: "PUT",
+            headers: {
+              "Authorization": `Bearer ${token}`
+            },
+          });
+          console.log("Unassign response status:", unassignResponse.status);
+        }
       }
 
       // Update selectedDevice immediately to reflect changes in the dialog
@@ -298,24 +362,24 @@ export default function FleetAdminIOTManagement() {
         driverName: newDriverName,
         notes: editForm.notes,
       };
-      
+
       setSelectedDevice(updatedSelectedDevice);
-      
-      // The WebSocket will handle updating the devices list automatically
-      // But we can also update it locally to ensure immediate UI update
-      setDevices(prev => 
-        prev.map(device => 
-          device._id === selectedDevice._id 
+
+      // Update local state
+      setDevices(prev =>
+        prev.map(device =>
+          device._id === selectedDevice._id
             ? updatedSelectedDevice
             : device
         )
       );
-      
+
       setIsEditMode(false);
       alert("Device updated successfully!");
     } catch (err: any) {
-      alert(`Error updating device: ${err.message}`);
+      console.error("=== DEBUG: Overall error ===");
       console.error(err);
+      alert(`Error updating device: ${err.message}`);
     }
   };
 
@@ -404,7 +468,7 @@ export default function FleetAdminIOTManagement() {
   return (
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
-        
+
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -534,8 +598,8 @@ export default function FleetAdminIOTManagement() {
                 </thead>
                 <tbody>
                   {filteredDevices.map((device) => (
-                    <tr 
-                      key={device._id} 
+                    <tr
+                      key={device._id}
                       className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => setSelectedDevice(device)}
                     >
@@ -585,9 +649,9 @@ export default function FleetAdminIOTManagement() {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -618,8 +682,8 @@ export default function FleetAdminIOTManagement() {
         </Card>
 
         {/* Device Details Dialog */}
-        <Dialog 
-          open={selectedDevice !== null} 
+        <Dialog
+          open={selectedDevice !== null}
           onOpenChange={(open) => {
             if (!open) {
               setSelectedDevice(null);
@@ -654,7 +718,7 @@ export default function FleetAdminIOTManagement() {
                         {isEditMode ? (
                           <Input
                             value={editForm.objectId}
-                            onChange={(e) => setEditForm({...editForm, objectId: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, objectId: e.target.value })}
                             className="w-full"
                           />
                         ) : (
@@ -669,7 +733,7 @@ export default function FleetAdminIOTManagement() {
                         {isEditMode ? (
                           <Input
                             value={editForm.deviceModel}
-                            onChange={(e) => setEditForm({...editForm, deviceModel: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, deviceModel: e.target.value })}
                             className="w-full"
                           />
                         ) : (
@@ -695,7 +759,7 @@ export default function FleetAdminIOTManagement() {
                               onValueChange={(value) => {
                                 if (value === "unassigned") {
                                   setEditForm({
-                                    ...editForm, 
+                                    ...editForm,
                                     vehicleId: "",
                                     vehiclePlate: "",
                                     driverName: ""
@@ -703,7 +767,7 @@ export default function FleetAdminIOTManagement() {
                                 } else {
                                   const selectedVehicle = vehicles.find(v => v.id === value);
                                   setEditForm({
-                                    ...editForm, 
+                                    ...editForm,
                                     vehicleId: value,
                                     vehiclePlate: selectedVehicle ? selectedVehicle.plate : "",
                                     driverName: selectedVehicle ? selectedVehicle.driverName : ""
@@ -744,7 +808,7 @@ export default function FleetAdminIOTManagement() {
                           <p className="font-medium text-foreground">{selectedDevice.vehiclePlate || "Unassigned"}</p>
                         )}
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 mb-1">
@@ -777,7 +841,7 @@ export default function FleetAdminIOTManagement() {
                             </Label>
                             <Select
                               value={editForm.status}
-                              onValueChange={(value) => setEditForm({...editForm, status: value})}
+                              onValueChange={(value) => setEditForm({ ...editForm, status: value })}
                             >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select status" />
@@ -804,7 +868,7 @@ export default function FleetAdminIOTManagement() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 mb-1">
                           <Clock className="w-4 h-4 text-muted-foreground" />
@@ -819,7 +883,7 @@ export default function FleetAdminIOTManagement() {
                         {isEditMode ? (
                           <Input
                             value={editForm.notes}
-                            onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                             placeholder="Add notes about this device..."
                             className="w-full"
                           />
@@ -834,15 +898,15 @@ export default function FleetAdminIOTManagement() {
                   <div className="flex gap-3 pt-6 border-t border-border mt-6">
                     {isEditMode ? (
                       <>
-                        <Button 
+                        <Button
                           className="flex-1 h-11"
                           onClick={handleSaveEdit}
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Save Changes
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="flex-1 h-11"
                           onClick={handleCancelEdit}
                         >
@@ -851,7 +915,7 @@ export default function FleetAdminIOTManagement() {
                       </>
                     ) : (
                       <>
-                        <Button 
+                        <Button
                           className="flex-1 h-11"
                           onClick={() => {
                             // Find the vehicle ID based on vehicle plate
