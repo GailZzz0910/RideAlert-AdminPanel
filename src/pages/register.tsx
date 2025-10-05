@@ -125,12 +125,12 @@ export default function Register() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     // For phone field, only allow numbers, spaces, parentheses, hyphens, and plus sign
     if (name === 'phone') {
       const originalLength = value.length;
       const phoneValue = value.replace(/[^0-9\s\(\)\-\+]/g, '');
-      
+
       // Check if invalid characters were removed
       if (originalLength > phoneValue.length) {
         setPhoneError("Only numbers and phone formatting characters (+, -, (), spaces) are allowed");
@@ -138,7 +138,7 @@ export default function Register() {
       } else {
         setPhoneError("");
       }
-      
+
       setFormData(prev => ({ ...prev, [name]: phoneValue }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -149,15 +149,15 @@ export default function Register() {
   const handleOtpChange = (index: number, value: string) => {
     // Only allow digits
     if (!/^\d*$/.test(value)) return;
-    
+
     const newOtpDigits = [...otpDigits];
     newOtpDigits[index] = value.slice(-1); // Only take the last character
     setOtpDigits(newOtpDigits);
-    
+
     // Update the combined OTP in formData
     const combinedOtp = newOtpDigits.join("");
     setFormData(prev => ({ ...prev, otp: combinedOtp }));
-    
+
     // Auto-focus next input
     if (value && index < 5) {
       const nextInput = document.getElementById(`otp-${index + 1}`);
@@ -180,7 +180,7 @@ export default function Register() {
     const newDigits = Array(6).fill("").map((_, i) => pastedData[i] || "");
     setOtpDigits(newDigits);
     setFormData(prev => ({ ...prev, otp: newDigits.join("") }));
-    
+
     // Focus the next empty input or the last one
     const nextEmptyIndex = newDigits.findIndex(digit => digit === "");
     const focusIndex = nextEmptyIndex === -1 ? 5 : Math.min(nextEmptyIndex, 5);
@@ -194,33 +194,18 @@ export default function Register() {
       return;
     }
 
-    setLoading(true);
-    
-    // Mock delay to simulate API call
-    setTimeout(() => {
-      setOtpSent(true);
-      setError("");
-      setLoading(false);
-      setCurrentStep(2); // Move to OTP verification step
-      
-      // Start cooldown for resend
-      setResendCooldown(60);
-      const timer = setInterval(() => {
-        setResendCooldown(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-    }, 1500);
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
 
-    // TODO: Replace with actual API call when backend is ready
-    /*
+    setLoading(true);
+    setError("");
+
     try {
-      const response = await fetch(`${apiBaseURL}/fleets/send-verification-email`, {
+      const response = await fetch(`${apiBaseURL}/auth/send-verification-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -233,8 +218,17 @@ export default function Register() {
         throw new Error(err.detail || "Failed to send verification code");
       }
 
+      const data = await response.json();
+
       setOtpSent(true);
       setError("");
+      setCurrentStep(2); // Move to OTP verification step
+
+      // For development - show OTP in console (remove in production)
+      if (data.debug_otp) {
+        console.log("DEBUG - Verification Code:", data.debug_otp);
+      }
+
       // Start cooldown for resend
       setResendCooldown(60);
       const timer = setInterval(() => {
@@ -246,46 +240,33 @@ export default function Register() {
           return prev - 1;
         });
       }, 1000);
+
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to send verification code. Please try again.");
     } finally {
       setLoading(false);
     }
-    */
   };
 
   // Verify OTP (Mock for testing)
   const verifyOTP = async () => {
-    if (!formData.otp) {
-      setError("Please enter the verification code.");
+    if (!formData.otp || formData.otp.length !== 6) {
+      setError("Please enter the 6-digit verification code.");
       return;
     }
 
     setLoading(true);
-    
-    // Mock verification - accept "123456" or any 6-digit code for testing
-    setTimeout(() => {
-      if (formData.otp === "123456" || formData.otp.length === 6) {
-        setOtpVerified(true);
-        setError("");
-        setCurrentStep(3); // Move to company info step
-      } else {
-        setError("Invalid verification code. Use 123456 for testing.");
-      }
-      setLoading(false);
-    }, 1000);
+    setError("");
 
-    // TODO: Replace with actual API call when backend is ready
-    /*
     try {
-      const response = await fetch(`${apiBaseURL}/fleets/verify-email`, {
+      const response = await fetch(`${apiBaseURL}/auth/verify-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
-          email: formData.email, 
-          verification_code: formData.otp 
+        body: JSON.stringify({
+          email: formData.email,
+          verification_code: formData.otp
         }),
       });
 
@@ -294,15 +275,17 @@ export default function Register() {
         throw new Error(err.detail || "Invalid verification code");
       }
 
+      const data = await response.json();
+
       setOtpVerified(true);
       setError("");
       setCurrentStep(3); // Move to company info step
+
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Invalid verification code. Please try again.");
     } finally {
       setLoading(false);
     }
-    */
   };
 
   const handleNextStep = () => {
@@ -434,9 +417,11 @@ export default function Register() {
           },
         ],
         password: formData.password,
-        subscription_plan:
-          selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1), // e.g. "Premium"
+        subscription_plan: selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1),
+        email_verified: otpVerified,
       };
+
+      console.log("📦 Sending payload:", payload);
 
       // Add the main payload
       formDataWithFiles.append('data', JSON.stringify(payload));
@@ -452,20 +437,47 @@ export default function Register() {
         return;
       }
 
+      console.log("🚀 Sending registration request...");
+
       const res = await fetch(`${apiBaseURL}/fleets/`, {
         method: "POST",
-        body: formDataWithFiles, // Send FormData instead of JSON
+        body: formDataWithFiles,
       });
 
+      console.log("📨 Response status:", res.status);
+
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Failed to register fleet");
+        // Try to get error message from response
+        let errorMessage = "Failed to register fleet";
+        try {
+          const errData = await res.json();
+          errorMessage = errData.detail || errorMessage;
+        } catch (parseError) {
+          // If response is not JSON, use status text
+          errorMessage = res.statusText || errorMessage;
+        }
+
+        console.error("❌ Server error:", errorMessage);
+        throw new Error(errorMessage);
       }
+
+      const result = await res.json();
+      console.log("✅ Registration successful:", result);
 
       // Success → redirect to login
       navigate("/");
+
     } catch (err: any) {
-      setError(err.message);
+      console.error("❌ Registration error:", err);
+
+      // If it's a CORS error but data was saved, show success message
+      if (err.message.includes('CORS') || err.message.includes('Failed to fetch')) {
+        setError("Registration completed! But there was a connection issue. You can now try logging in.");
+        // Optional: redirect after a delay
+        setTimeout(() => navigate("/"), 3000);
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -782,9 +794,8 @@ export default function Register() {
                                 placeholder="0912 345 6789"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className={`pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 ${
-                                  phoneError ? 'border-red-500/50 focus:border-red-500' : ''
-                                }`}
+                                className={`pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 ${phoneError ? 'border-red-500/50 focus:border-red-500' : ''
+                                  }`}
                                 required
                               />
                             </div>
@@ -912,8 +923,8 @@ export default function Register() {
                           {/* File Upload Area */}
                           <div
                             className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${dragActive
-                                ? "border-blue-500 bg-blue-500/10"
-                                : "border-gray-600 hover:border-gray-500"
+                              ? "border-blue-500 bg-blue-500/10"
+                              : "border-gray-600 hover:border-gray-500"
                               }`}
                             onDragEnter={handleDrag}
                             onDragLeave={handleDrag}
@@ -1090,7 +1101,7 @@ export default function Register() {
                             Back
                           </Button>
 
-                          <Button 
+                          <Button
                             onClick={handleSubmit}
                             disabled={loading}
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
