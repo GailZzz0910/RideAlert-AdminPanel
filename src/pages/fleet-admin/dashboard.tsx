@@ -135,6 +135,7 @@ export default function DashboardPage() {
             {filteredVehicles.map((v) => (
               <DashboardVehicleCard
                 key={v.id}
+                id={v.id}
                 title={v.route}
                 subtitle={`ETA: unknown`} // Replace with real ETA if available
                 status={getVehicleStatusFromData(v.status)}
