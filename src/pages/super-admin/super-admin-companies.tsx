@@ -446,6 +446,9 @@ export default function CompanyManagement() {
             </CardContent>
           </Card>
         </div>
+        
+        <h1 className="text-3xl font-bold text-foreground">Approved Companies</h1>
+            <p className="text-muted-foreground">Oversee the approved companies and manage them.</p>
 
         {/* Controls */}
         <div className="flex items-center gap-4">
@@ -460,26 +463,6 @@ export default function CompanyManagement() {
               className="w-full pl-10 pr-4 py-2 border border-input bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
             />
           </div>
-
-          {/* Filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-input bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          {/* Add Company Button */}
-          <Button className="cursor-pointer">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Company
-          </Button>
         </div>
 
         {/* Companies Table */}
@@ -805,9 +788,7 @@ export default function CompanyManagement() {
                           <Edit className="w-4 h-4 mr-2" />
                           Edit Company
                         </Button>
-                        <Button variant="outline" className="flex-1 cursor-pointer">
-                          View Vehicles
-                        </Button>
+                    
                       </>
                     )}
                   </div>

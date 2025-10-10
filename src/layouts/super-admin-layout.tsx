@@ -80,13 +80,13 @@ const useSuperAdminNavigationLinks = () => {
 
     const userNavLinks = [
       {
-        label: "Registration",
+        label: "Registration Requests",
         href: "/super-admin/fleet-management",
         icon: <ClipboardList className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/super-admin/fleet-management",
       },
       {
-        label: "Subscription Plans",
+        label: "Plans",
         href: "/super-admin/plans",
         icon: <CreditCard className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/super-admin/plans",
@@ -159,11 +159,11 @@ const getSuperAdminPageTitle = (pathname: string) => {
     case "/super-admin":
       return "Super Admin Dashboard";
     case "/super-admin/companies":
-      return "Company Management";
+      return "Companies";
     case "/super-admin/users":
       return "User Management";
     case "/super-admin/fleet-management":
-      return "Fleet Registration Management";
+      return "Registration Requests";
     case "/super-admin/plans":
       return "Plans Management";
     case "/super-admin/iot-management":

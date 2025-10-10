@@ -100,7 +100,7 @@ export default function SuperAdminDashboard() {
             subtext={""}
           />
           <DashboardCountCard
-            label="Total Users"
+            label="Total Mobile Users"
             count={userCount}
             icon={<Users className="text-primary w-6 h-6" />}
           />
