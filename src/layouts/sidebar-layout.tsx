@@ -16,7 +16,6 @@ import {
   Layers, 
   Plus, 
   Car, 
-  Settings,
   Cpu
 } from "lucide-react";
 import { useUser } from "@/context/userContext";
@@ -67,6 +66,9 @@ const useNavigationLinks = () => {
         icon: <Layers className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/dashboard",
       },
+    ];
+
+    const managementNavLinks = [
       {
         label: "Add Vehicle",
         href: "/dashboard/add-vehicle",
@@ -78,7 +80,6 @@ const useNavigationLinks = () => {
         href: "/dashboard/vehicle-management",
         icon: <Car className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/dashboard/vehicle-management",
-        
       },
       {
         label: "IOT Management",
@@ -88,22 +89,13 @@ const useNavigationLinks = () => {
       },
     ];
 
-    const settingsNavLinks = [
-      {
-        label: "Settings",
-        href: "/dashboard/settings",
-        icon: <Settings className="w-5 h-5 text-sidebar-foreground" />,
-        isActive: location.pathname === "/dashboard/settings",
-      },
-    ];
-
-    return { mainNavLinks, settingsNavLinks };  
+    return { mainNavLinks, managementNavLinks };  
   }, [location.pathname]);
 };
 
 // Memoized Sidebar Content to prevent unnecessary re-renders
 const MemoizedSidebarContent = React.memo(() => {
-  const { mainNavLinks, settingsNavLinks } = useNavigationLinks();
+  const { mainNavLinks, managementNavLinks } = useNavigationLinks();
 
   return (
     <>
@@ -122,7 +114,7 @@ const MemoizedSidebarContent = React.memo(() => {
 
         <SidebarGroup label="Management">
           <SidebarNav>
-            {settingsNavLinks.map((link) => (
+            {managementNavLinks.map((link) => (
               <SidebarNavItem key={link.href} link={link} />
             ))}
           </SidebarNav>
@@ -141,8 +133,8 @@ const getPageTitle = (pathname: string) => {
       return "Add Vehicle";
     case "/dashboard/vehicle-management":
       return "Vehicle Management";
-    case "/dashboard/settings":
-      return "Settings";
+    case "/dashboard/iot-management":
+      return "IOT Management";
     case "/dashboard/notifications":
       return "Notifications";
     default:
