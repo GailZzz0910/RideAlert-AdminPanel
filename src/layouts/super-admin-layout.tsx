@@ -19,13 +19,15 @@ import {
   Users, 
   Car,
   BarChart3,
-  Settings,
   Crown,
   Database,
   UserPlus,
   UserCheck,
   ClipboardList,
   Cpu,
+  CreditCard,
+  MapPin,
+  Route,
 } from "lucide-react";
 
 // Memoized Logo component for Super Admin
@@ -78,40 +80,43 @@ const useSuperAdminNavigationLinks = () => {
 
     const userNavLinks = [
       {
-        label: "Fleet Registration",
+        label: "Registration",
         href: "/super-admin/fleet-management",
         icon: <ClipboardList className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/super-admin/fleet-management",
       },
-    ];
-
-    const systemNavLinks = [
       {
-        label: "IOT Management",
+        label: "Subscription Plans",
+        href: "/super-admin/plans",
+        icon: <CreditCard className="w-5 h-5 text-sidebar-foreground" />,
+        isActive: location.pathname === "/super-admin/plans",
+      },
+      {
+        label: "Device",
         href: "/super-admin/iot-management",
         icon: <Cpu className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/super-admin/iot-management",
       },
     ];
 
-
-    const settingsNavLinks = [
+    const routesNavLinks = [
       {
-        
-        label: "Settings",
-        href: "/super-admin/settings",
-        icon: <Settings className="w-5 h-5 text-sidebar-foreground" />,
-        isActive: location.pathname === "/super-admin/settings",
+        label: "Add Routes",
+        href: "/super-admin/add-routes",
+        icon: <Route className="w-5 h-5 text-sidebar-foreground" />,
+        isActive: location.pathname === "/super-admin/add-routes",
       },
     ];
 
-    return { mainNavLinks, userNavLinks, systemNavLinks, settingsNavLinks };  
+    const systemNavLinks = [];
+
+    return { mainNavLinks, userNavLinks, routesNavLinks };  
   }, [location.pathname]);
 };
 
 // Memoized Sidebar Content for Super Admin
 const MemoizedSuperAdminSidebarContent = React.memo(() => {
-  const { mainNavLinks, userNavLinks, systemNavLinks, settingsNavLinks } = useSuperAdminNavigationLinks();
+  const { mainNavLinks, userNavLinks, routesNavLinks } = useSuperAdminNavigationLinks();
 
   return (
     <>
@@ -128,7 +133,7 @@ const MemoizedSuperAdminSidebarContent = React.memo(() => {
           </SidebarNav>
         </SidebarGroup>
 
-        <SidebarGroup label="Fleet Management">
+        <SidebarGroup label="Accounts">
           <SidebarNav>
             {userNavLinks.map((link) => (
               <SidebarNavItem key={link.href} link={link} />
@@ -136,17 +141,9 @@ const MemoizedSuperAdminSidebarContent = React.memo(() => {
           </SidebarNav>
         </SidebarGroup>
 
-        <SidebarGroup label="System">
+        <SidebarGroup label="Routes">
           <SidebarNav>
-            {systemNavLinks.map((link) => (
-              <SidebarNavItem key={link.href} link={link} />
-            ))}
-          </SidebarNav>
-        </SidebarGroup>
-
-        <SidebarGroup label="Management">
-          <SidebarNav>
-            {settingsNavLinks.map((link) => (
+            {routesNavLinks.map((link) => (
               <SidebarNavItem key={link.href} link={link} />
             ))}
           </SidebarNav>
@@ -167,16 +164,18 @@ const getSuperAdminPageTitle = (pathname: string) => {
       return "User Management";
     case "/super-admin/fleet-management":
       return "Fleet Registration Management";
+    case "/super-admin/plans":
+      return "Plans Management";
     case "/super-admin/iot-management":
-      return "IOT Device Management";
+      return "Device Management";
+    case "/super-admin/add-routes":
+      return "Add Routes";
     case "/super-admin/add-user":
       return "Add User";
     case "/super-admin/all-vehicles":
       return "All Vehicles";
     case "/super-admin/system-data":
       return "System Data";
-    case "/super-admin/settings":
-      return "System Settings";
     default:
       return "Super Admin Dashboard";
   }
