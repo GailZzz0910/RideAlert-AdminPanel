@@ -36,23 +36,30 @@ interface SidebarProviderProps {
 
 export const SidebarProvider: React.FC<SidebarProviderProps> = ({
   children,
-  defaultOpen = false,
+  defaultOpen = true, // Changed default to true
 }) => {
+  // Always start with sidebar open by default, don't persist state across sessions
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [isMobile, setIsMobile] = useState(false);
 
   React.useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) {
-        setIsOpen(defaultOpen);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      
+      // On mobile, close sidebar by default for better UX
+      if (mobile) {
+        setIsOpen(false);
+      } else {
+        // On desktop, always start open
+        setIsOpen(true);
       }
     };
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
-  }, [defaultOpen]);
+  }, []);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
   const closeSidebar = () => setIsOpen(false);

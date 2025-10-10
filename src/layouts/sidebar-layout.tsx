@@ -167,7 +167,7 @@ export default function NewDashboardLayout() {
   }
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={true}>
       <motion.div 
         className="flex h-screen bg-gray-50 overflow-hidden relative"
         layout
