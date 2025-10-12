@@ -30,8 +30,6 @@ import {
   Eye,
   Calendar,
   AlertCircle,
-  Edit,
-  Trash2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -486,7 +484,7 @@ export default function SuperAdminFleetManagement() {
                               View PDF
                             </Button>
                           ) : (
-                            <span className="text-xs text-muted-foreground">No file</span>
+                            <span className="text-m text-muted-foreground">No file</span>
                           )}
                         </td>
                         <td className="py-4 px-4">
@@ -497,50 +495,6 @@ export default function SuperAdminFleetManagement() {
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditFleet(registration);
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="cursor-pointer text-red-600 hover:text-red-700"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Prevent row click when opening delete dialog
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Fleet Registration</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete the registration for "{registration.companyName}"?
-                                    This action cannot be undone and will permanently remove the fleet from the system.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-red-600 hover:bg-red-700"
-                                    onClick={() => handleDeleteFleet(registration.id)}
-                                  >
-                                    Delete Fleet
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
 
                             {registration.status === "pending" && (
                               <>
@@ -824,25 +778,7 @@ export default function SuperAdminFleetManagement() {
                       </>
                     ) : (
                       <>
-                        <Button
-                          className="flex-1 cursor-pointer"
-                          onClick={() => {
-                            setEditForm({
-                              companyName: selectedRegistration.companyName,
-                              companyCode: selectedRegistration.companyCode,
-                              contactInfo: selectedRegistration.contactInfo,
-                              email: selectedRegistration.email,
-                              phone: selectedRegistration.phone,
-                              address: selectedRegistration.address,
-                              selectedPlan: selectedRegistration.selectedPlan,
-                              maxVehicles: selectedRegistration.maxVehicles,
-                            });
-                            setIsEditMode(true);
-                          }}
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit Fleet
-                        </Button>
+
                         {selectedRegistration.status === "pending" && (
                           <>
                             <Button

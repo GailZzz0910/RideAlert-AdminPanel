@@ -324,11 +324,8 @@ export default function SuperAdminIOTManagement() {
 
     const matchesFilter =
       filterStatus === "all" ||
-      (filterStatus === "assigned" && device.companyName !== null) ||
-      (filterStatus === "unassigned" && device.companyName === null) ||
       (filterStatus === "online" && device.status === "online") ||
-      (filterStatus === "offline" && device.status === "offline") ||
-      (filterStatus === "maintenance" && device.status === "maintenance");
+      (filterStatus === "offline" && device.status === "offline");
 
     return matchesSearch && matchesFilter;
   });
@@ -482,11 +479,8 @@ export default function SuperAdminIOTManagement() {
               className="px-3 py-2 border border-input bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
             >
               <option value="all">All Status</option>
-              <option value="assigned">Company Assigned</option>
-              <option value="unassigned">Unassigned</option>
-              <option value="online">Online</option>
-              <option value="offline">Offline</option>
-              <option value="maintenance">Maintenance</option>
+              <option value="online">Active</option>
+              <option value="offline">Inactive</option>
             </select>
           </div>
 
@@ -688,13 +682,7 @@ export default function SuperAdminIOTManagement() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <Wifi className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <span className="text-sm text-muted-foreground">Signal Strength</span>
-                          <p className="font-medium">{selectedDevice.signalStrength}%</p>
-                        </div>
-                      </div>
+                      
                     </div>
                   </div>
 
@@ -770,22 +758,7 @@ export default function SuperAdminIOTManagement() {
                     <h3 className="text-lg font-semibold mb-3">Status Information</h3>
                     {isEditMode ? (
                       <div className="space-y-3">
-                        <div>
-                          <Label htmlFor="status">Device Status</Label>
-                          <Select
-                            value={editForm.status}
-                            onValueChange={(value) => setEditForm({...editForm, status: value})}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="online">Online</SelectItem>
-                              <SelectItem value="offline">Offline</SelectItem>
-                              <SelectItem value="maintenance">Maintenance</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                      
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 mb-4">

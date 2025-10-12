@@ -483,7 +483,7 @@ export default function CompanyManagement() {
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Plan</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Vehicles</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Created</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date Approved</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>

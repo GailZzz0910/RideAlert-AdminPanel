@@ -15,7 +15,8 @@ import {
   ContextMenuContent,
   ContextMenuItem,
 } from "@/components/ui/context-menu";
-import { Trash2, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Trash2, Pencil, Route } from "lucide-react";
 import axios from "axios";
 import { apiBaseURL } from "@/utils/api";
 import { useUser } from "@/context/userContext";
@@ -32,6 +33,7 @@ export interface VehicleListItem {
   maxLoad: string;
   driver: string;
   onViewDetails?: () => void;
+  onAddRoutes?: () => void;
 }
 
 export interface VehicleListViewProps {
@@ -100,6 +102,7 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
             <TableHead className="font-semibold">Route</TableHead>
             <TableHead className="font-semibold">Capacity</TableHead>
             <TableHead className="font-semibold">Driver</TableHead>
+            <TableHead className="font-semibold">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -130,7 +133,14 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
                       <span className="text-sm text-muted-foreground">{vehicle.driver}</span>
                     </TableCell>
                     <TableCell>
-                      {/* Empty cell for context menu spacing */}
+                      <Button
+                        size="sm"
+                        onClick={() => vehicle.onAddRoutes?.()}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer flex items-center gap-2"
+                      >
+                        <Route className="w-4 h-4" />
+                        Add Routes
+                      </Button>
                     </TableCell>
                   </TableRow>
                 </ContextMenuTrigger>

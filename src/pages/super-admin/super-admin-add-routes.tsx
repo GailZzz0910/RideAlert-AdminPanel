@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Upload, File, X, Route, Search, Filter, MapPin, Navigation, Plus } from "lucide-react";
+import { Upload, File, X, Route, Search, Filter, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 
 interface Route {
   id: string;
+  company: string;
   startLocation: string;
   endLocation: string;
   landmarkStart: string;
@@ -31,6 +32,7 @@ interface Route {
 const dummyRoutes: Route[] = [
   {
     id: "1",
+    company: "Metro Transit Corp",
     startLocation: "Quezon City",
     endLocation: "Makati City",
     landmarkStart: "Quezon Memorial Circle",
@@ -38,10 +40,27 @@ const dummyRoutes: Route[] = [
   },
   {
     id: "2", 
+    company: "City Express Lines",
     startLocation: "Manila",
     endLocation: "Pasig City",
     landmarkStart: "Rizal Park",
     landmarkEnd: "Emerald Avenue"
+  },
+  {
+    id: "3",
+    company: "Golden Eagle Transport",
+    startLocation: "Taguig City",
+    endLocation: "Mandaluyong City",
+    landmarkStart: "BGC Central Plaza",
+    landmarkEnd: "SM Megamall"
+  },
+  {
+    id: "4",
+    company: "Blue Line Transport",
+    startLocation: "Paranaque City",
+    endLocation: "Las Pinas City",
+    landmarkStart: "SM Sucat",
+    landmarkEnd: "Alabang Town Center"
   }
 ];
 
@@ -54,21 +73,12 @@ export default function SuperAdminAddRoutes() {
   const [searchValue, setSearchValue] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
-  // Add Routes state
-  const [isAddRouteDialogOpen, setIsAddRouteDialogOpen] = useState(false);
   const [routes, setRoutes] = useState<Route[]>(dummyRoutes);
-  
-  // Form state for adding new routes
-  const [newRoute, setNewRoute] = useState<Omit<Route, 'id'>>({
-    startLocation: "",
-    endLocation: "",
-    landmarkStart: "",
-    landmarkEnd: ""
-  });
 
   // Filter routes based on search
   const filteredRoutes = routes.filter((route) => {
     const matchesSearch =
+      route.company.toLowerCase().includes(searchValue.toLowerCase()) ||
       route.startLocation.toLowerCase().includes(searchValue.toLowerCase()) ||
       route.endLocation.toLowerCase().includes(searchValue.toLowerCase()) ||
       route.landmarkStart.toLowerCase().includes(searchValue.toLowerCase()) ||
@@ -164,37 +174,6 @@ export default function SuperAdminAddRoutes() {
     }
   };
 
-  // Handle adding new route
-  const handleAddRoute = () => {
-    if (!newRoute.startLocation || !newRoute.endLocation || !newRoute.landmarkStart || !newRoute.landmarkEnd) {
-      setError("Please fill in all fields.");
-      return;
-    }
-
-    const route: Route = {
-      id: (routes.length + 1).toString(),
-      ...newRoute
-    };
-
-    setRoutes(prev => [...prev, route]);
-    setNewRoute({
-      startLocation: "",
-      endLocation: "",
-      landmarkStart: "",
-      landmarkEnd: ""
-    });
-    setIsAddRouteDialogOpen(false);
-    setError("");
-  };
-
-  // Handle input changes for new route form
-  const handleNewRouteChange = (field: keyof Omit<Route, 'id'>, value: string) => {
-    setNewRoute(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
   return (
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
@@ -221,15 +200,6 @@ export default function SuperAdminAddRoutes() {
               className="w-full pl-10 pr-4 py-2 border border-input bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
             />
           </div>
-          
-          {/* Add Routes Button */}
-          <Button 
-            onClick={() => setIsAddRouteDialogOpen(true)}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Routes
-          </Button>
         </div>
 
         {/* Routes Table */}
@@ -245,6 +215,7 @@ export default function SuperAdminAddRoutes() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Company</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Location</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Location</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (Start)</th>
@@ -259,6 +230,9 @@ export default function SuperAdminAddRoutes() {
                       className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => setIsUploadModalOpen(true)}
                     >
+                      <td className="py-4 px-4">
+                        <span className="text-foreground font-medium">{route.company}</span>
+                      </td>
                       <td className="py-4 px-4">
                         <span className="text-foreground">{route.startLocation}</span>
                       </td>
@@ -450,101 +424,6 @@ export default function SuperAdminAddRoutes() {
                   variant="outline"
                   className="cursor-pointer flex-1"
                   onClick={() => setIsUploadModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Add Route Dialog */}
-        <Dialog open={isAddRouteDialogOpen} onOpenChange={setIsAddRouteDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add New Route</DialogTitle>
-              <DialogDescription>
-                Create a new route entry. Once added, you can upload GeoJSON files for this route.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={(e) => { e.preventDefault(); handleAddRoute(); }} className="space-y-4">
-              {/* Start Location */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Start Location</label>
-                <Input
-                  value={newRoute.startLocation}
-                  onChange={(e) => handleNewRouteChange('startLocation', e.target.value)}
-                  placeholder="Enter start location"
-                  className="w-full"
-                />
-              </div>
-
-              {/* End Location */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">End Location</label>
-                <Input
-                  value={newRoute.endLocation}
-                  onChange={(e) => handleNewRouteChange('endLocation', e.target.value)}
-                  placeholder="Enter end location"
-                  className="w-full"
-                />
-              </div>
-
-              {/* Landmark Start */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Landmark (Start)</label>
-                <textarea
-                  value={newRoute.landmarkStart}
-                  onChange={(e) => handleNewRouteChange('landmarkStart', e.target.value)}
-                  placeholder="Enter landmark at start location"
-                  className="w-full px-3 py-2 border border-input bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
-                  rows={2}
-                />
-              </div>
-
-              {/* Landmark End */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Landmark (End)</label>
-                <textarea
-                  value={newRoute.landmarkEnd}
-                  onChange={(e) => handleNewRouteChange('landmarkEnd', e.target.value)}
-                  placeholder="Enter landmark at end location"
-                  className="w-full px-3 py-2 border border-input bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
-                  rows={2}
-                />
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                  <p className="text-red-800 dark:text-red-200 text-sm text-center">{error}</p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
-                <Button
-                  type="submit"
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Route
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setIsAddRouteDialogOpen(false);
-                    setNewRoute({
-                      startLocation: "",
-                      endLocation: "",
-                      landmarkStart: "",
-                      landmarkEnd: ""
-                    });
-                    setError("");
-                  }}
                 >
                   Cancel
                 </Button>
