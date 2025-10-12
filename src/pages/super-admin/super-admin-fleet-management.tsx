@@ -58,7 +58,7 @@ const defaultPlan = {
 
 export default function SuperAdminFleetManagement() {
   const [searchValue, setSearchValue] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("pending");
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
   const [fleets, setFleets] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -313,6 +313,9 @@ export default function SuperAdminFleetManagement() {
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
 
+        <h1 className="text-3xl font-bold text-foreground">Fleet Registration Requests</h1>
+            <p className="text-muted-foreground">Manage fleet registrations. Accept or reject requests as needed.</p>
+
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -504,9 +507,10 @@ export default function SuperAdminFleetManagement() {
                                     e.stopPropagation();
                                     handleApprove(registration.id);
                                   }}
-                                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                                  className="bg-green-600 cursor-pointer"
                                 >
-                                  <Check className="w-4 h-4" />
+
+                                  <p className="text-sm text-white">Accept</p>
                                 </Button>
                                 <Button
                                   size="sm"
@@ -517,7 +521,7 @@ export default function SuperAdminFleetManagement() {
                                     handleReject(registration.id);
                                   }}
                                 >
-                                  <X className="w-4 h-4" />
+                                  <p className="text-sm text-white">Reject</p>
                                 </Button>
                               </>
                             )}

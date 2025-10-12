@@ -16,7 +16,9 @@ import {
   Layers, 
   Plus, 
   Car, 
-  Cpu
+  Cpu,
+  Route,
+  Navigation
 } from "lucide-react";
 import { useUser } from "@/context/userContext";
 import logoImage from "@/assets/logo.png";
@@ -70,32 +72,41 @@ const useNavigationLinks = () => {
 
     const managementNavLinks = [
       {
-        label: "Add Vehicle",
-        href: "/dashboard/add-vehicle",
-        icon: <Plus className="w-5 h-5 text-sidebar-foreground" />,
-        isActive: location.pathname === "/dashboard/add-vehicle",
-      },
-      {
-        label: "Vehicle Management",
+        label: "Vehicle",
         href: "/dashboard/vehicle-management",
         icon: <Car className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/dashboard/vehicle-management",
       },
       {
-        label: "IOT Management",
+        label: "IoT",
         href: "/dashboard/iot-management",
         icon: <Cpu className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/dashboard/iot-management",
       },
     ];
 
-    return { mainNavLinks, managementNavLinks };  
+    const routesNavLinks = [
+      {
+        label: "Vehicle",
+        href: "/dashboard/add-vehicle",
+        icon: <Plus className="w-5 h-5 text-sidebar-foreground" />,
+        isActive: location.pathname === "/dashboard/add-vehicle",
+      },
+      {
+        label: "Routes",
+        href: "/dashboard/add-routes",
+        icon: <Plus className="w-5 h-5 text-sidebar-foreground" />,
+        isActive: location.pathname === "/dashboard/add-routes",
+      },
+    ];
+
+    return { mainNavLinks, managementNavLinks, routesNavLinks };  
   }, [location.pathname]);
 };
 
 // Memoized Sidebar Content to prevent unnecessary re-renders
 const MemoizedSidebarContent = React.memo(() => {
-  const { mainNavLinks, managementNavLinks } = useNavigationLinks();
+  const { mainNavLinks, managementNavLinks, routesNavLinks } = useNavigationLinks();
 
   return (
     <>
@@ -119,6 +130,14 @@ const MemoizedSidebarContent = React.memo(() => {
             ))}
           </SidebarNav>
         </SidebarGroup>
+
+        <SidebarGroup label="Create">
+          <SidebarNav>
+            {routesNavLinks.map((link) => (
+              <SidebarNavItem key={link.href} link={link} />
+            ))}
+          </SidebarNav>
+        </SidebarGroup>
       </SidebarContent>
     </>
   );
@@ -134,7 +153,11 @@ const getPageTitle = (pathname: string) => {
     case "/dashboard/vehicle-management":
       return "Vehicle Management";
     case "/dashboard/iot-management":
-      return "IOT Management";
+      return "IoT Management";
+    case "/dashboard/add-routes":
+      return "Add Routes";
+    case "/dashboard/assign-routes":
+      return "Assign Routes";
     case "/dashboard/notifications":
       return "Notifications";
     default:
