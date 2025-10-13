@@ -391,6 +391,9 @@ export default function SuperAdminIOTManagement() {
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
 
+        <h1 className="text-3xl font-bold text-foreground">IoT Device Management</h1>
+            <p className="text-muted-foreground">Create IoT Devices and assign them to a fleet company.</p>
+
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>

@@ -11,6 +11,8 @@ import SuperAdminLayout from "./layouts/super-admin-layout";
 import Dashboard from "./pages/fleet-admin/dashboard";
 import AddVehicle from "./pages/fleet-admin/add-vehicle";
 import VehicleManagement from "./pages/fleet-admin/vehicle-management";
+import AddRoutes from "./pages/fleet-admin/add-routes";
+import AssignRoute from "./pages/fleet-admin/assign-route";
 import Settings from "./pages/fleet-admin/settings";
 import Map from "./pages/fleet-admin/map";
 import FleetAdminIOTManagement from "./pages/fleet-admin/iot-management";
@@ -44,6 +46,8 @@ function AppWithProviders() {
                             <Route index element={<Dashboard />} />
                             <Route path="add-vehicle" element={<AddVehicle />} />
                             <Route path="vehicle-management" element={<VehicleManagement />} />
+                            <Route path="assign-route/:vehicle_id" element={<AssignRoute />} />
+                            <Route path="add-routes" element={<AddRoutes />} />
                             <Route path="settings" element={<Settings />} />
                             <Route path="maps" element={<Map />} />
                             <Route path="iot-management" element={<FleetAdminIOTManagement />} />

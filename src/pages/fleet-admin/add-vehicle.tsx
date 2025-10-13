@@ -13,7 +13,7 @@ import { useState } from "react";
 import api from "@/utils/api";
 import { useUser } from "@/context/userContext";
 
-const routes = ["Igpit - Cogon", "Cogon - Igpit", "Other Route"];
+const routes = ["Igpit - Bugo", "Bugo - Igpit", "Other Route"];
 const statuses = ["Available", "Unavailable", "In Service", "Maintenance"];
 
 export default function AddVehicle() {

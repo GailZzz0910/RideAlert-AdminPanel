@@ -16,7 +16,7 @@ import {
   ContextMenuItem,
 } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
-import { Trash2, Pencil, Route } from "lucide-react";
+import { Trash2, Pencil, Navigation } from "lucide-react";
 import axios from "axios";
 import { apiBaseURL } from "@/utils/api";
 import { useUser } from "@/context/userContext";
@@ -33,7 +33,7 @@ export interface VehicleListItem {
   maxLoad: string;
   driver: string;
   onViewDetails?: () => void;
-  onAddRoutes?: () => void;
+  onAssignRoute?: () => void;
 }
 
 export interface VehicleListViewProps {
@@ -135,11 +135,11 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
                     <TableCell>
                       <Button
                         size="sm"
-                        onClick={() => vehicle.onAddRoutes?.()}
+                        onClick={() => vehicle.onAssignRoute?.()}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer flex items-center gap-2"
                       >
-                        <Route className="w-4 h-4" />
-                        Add Routes
+                        <Navigation className="w-4 h-4" />
+                        Assign Routes
                       </Button>
                     </TableCell>
                   </TableRow>

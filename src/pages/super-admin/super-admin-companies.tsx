@@ -382,6 +382,9 @@ export default function CompanyManagement() {
     <ScrollArea className="h-screen w-full">
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
 
+        <h1 className="text-3xl font-bold text-foreground">Approved Companies</h1>
+            <p className="text-muted-foreground">Oversee the approved companies and manage them.</p>
+
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -447,9 +450,6 @@ export default function CompanyManagement() {
           </Card>
         </div>
         
-        <h1 className="text-3xl font-bold text-foreground">Approved Companies</h1>
-            <p className="text-muted-foreground">Oversee the approved companies and manage them.</p>
-
         {/* Controls */}
         <div className="flex items-center gap-4">
           {/* Search */}
