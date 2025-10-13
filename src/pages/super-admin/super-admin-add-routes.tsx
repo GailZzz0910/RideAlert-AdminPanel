@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Upload, File, X, Route, Search, Filter, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { apiBaseURL } from "@/utils/api";
 import { Input } from "@/components/ui/input";
 
 interface Route {
@@ -26,43 +27,8 @@ interface Route {
   endLocation: string;
   landmarkStart: string;
   landmarkEnd: string;
-}
 
-// Dummy route data
-const dummyRoutes: Route[] = [
-  {
-    id: "1",
-    company: "Metro Transit Corp",
-    startLocation: "Quezon City",
-    endLocation: "Makati City",
-    landmarkStart: "Quezon Memorial Circle",
-    landmarkEnd: "Ayala Center"
-  },
-  {
-    id: "2", 
-    company: "City Express Lines",
-    startLocation: "Manila",
-    endLocation: "Pasig City",
-    landmarkStart: "Rizal Park",
-    landmarkEnd: "Emerald Avenue"
-  },
-  {
-    id: "3",
-    company: "Golden Eagle Transport",
-    startLocation: "Taguig City",
-    endLocation: "Mandaluyong City",
-    landmarkStart: "BGC Central Plaza",
-    landmarkEnd: "SM Megamall"
-  },
-  {
-    id: "4",
-    company: "Blue Line Transport",
-    startLocation: "Paranaque City",
-    endLocation: "Las Pinas City",
-    landmarkStart: "SM Sucat",
-    landmarkEnd: "Alabang Town Center"
-  }
-];
+}
 
 export default function SuperAdminAddRoutes() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -72,8 +38,38 @@ export default function SuperAdminAddRoutes() {
   const [success, setSuccess] = useState("");
   const [searchValue, setSearchValue] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  
-  const [routes, setRoutes] = useState<Route[]>(dummyRoutes);
+
+  const [routes, setRoutes] = useState<Route[]>([]);
+
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      try {
+        const token = localStorage.getItem("token"); // or however you store auth
+        const res = await fetch(`${apiBaseURL}/declared_routes/all/routes`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) {
+          throw new Error("Failed to fetch routes");
+        }
+        const data = await res.json();
+        const formattedRoutes = data.map((route: any) => ({
+          id: route._id,
+          company: route.company_name || "Unknown Company",
+          startLocation: route.start_location,
+          endLocation: route.end_location,
+          landmarkStart: route.landmark_details_start,
+          landmarkEnd: route.landmark_details_end,
+        }));
+        setRoutes(formattedRoutes);
+      } catch (error) {
+        console.error("Error fetching routes:", error);
+      }
+    };
+
+    fetchRoutes();
+  }, []);
 
   // Filter routes based on search
   const filteredRoutes = routes.filter((route) => {
@@ -91,7 +87,7 @@ export default function SuperAdminAddRoutes() {
   const handleFiles = (files: FileList) => {
     setError("");
     const fileArray = Array.from(files);
-    
+
     // Validate file types
     const validFiles = fileArray.filter(file => {
       const validTypes = ['.geojson', '.json'];
@@ -146,7 +142,7 @@ export default function SuperAdminAddRoutes() {
   // Submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (uploadedFiles.length === 0) {
       setError("Please upload at least one GeoJSON file.");
       return;
@@ -164,7 +160,7 @@ export default function SuperAdminAddRoutes() {
 
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       setSuccess(`Successfully uploaded ${uploadedFiles.length} route file(s)!`);
       setUploadedFiles([]);
     } catch (err) {
@@ -225,8 +221,8 @@ export default function SuperAdminAddRoutes() {
                 </thead>
                 <tbody>
                   {filteredRoutes.map((route) => (
-                    <tr 
-                      key={route.id} 
+                    <tr
+                      key={route.id || `${route.company}-${route.startLocation}-${route.endLocation}`}
                       className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => setIsUploadModalOpen(true)}
                     >
@@ -246,8 +242,8 @@ export default function SuperAdminAddRoutes() {
                         <span className="text-sm text-muted-foreground">{route.landmarkEnd}</span>
                       </td>
                       <td className="py-4 px-4">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -296,11 +292,10 @@ export default function SuperAdminAddRoutes() {
               <div className="space-y-2">
                 <Label htmlFor="route-files" className="text-foreground">Route Files (GeoJSON)</Label>
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                    dragActive
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-muted-foreground"
-                  }`}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-muted-foreground"
+                    }`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
