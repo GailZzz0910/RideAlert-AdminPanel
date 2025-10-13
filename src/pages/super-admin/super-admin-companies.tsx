@@ -639,7 +639,7 @@ export default function CompanyManagement() {
         <h1 className="text-3xl font-bold text-foreground">Approved Companies</h1>
         <p className="text-muted-foreground">Oversee the approved companies and manage them.</p>
 
-        {/* WebSocket Connection Status */}
+        {/* WebSocket Connection Status
         <div className="flex gap-2 text-sm">
           <div className={`flex items-center gap-1 ${statsCountSocketRef.current?.readyState === WebSocket.OPEN ? 'text-green-600' : 'text-red-600'}`}>
             <div className={`w-2 h-2 rounded-full ${statsCountSocketRef.current?.readyState === WebSocket.OPEN ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -649,7 +649,7 @@ export default function CompanyManagement() {
             <div className={`w-2 h-2 rounded-full ${statsVerifiedSocketRef.current?.readyState === WebSocket.OPEN ? 'bg-green-500' : 'bg-red-500'}`} />
             Stats Verified: {statsVerifiedSocketRef.current?.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected'}
           </div>
-        </div>
+        </div> */}
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
