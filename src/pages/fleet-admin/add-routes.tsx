@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,61 +12,142 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Plus, MapPin, Route, X, Trash2, Search, Filter, Edit, CheckCircle, Clock } from "lucide-react";
 import { useUser } from "@/context/userContext";
 import { apiBaseURL } from "@/utils/api";
+import {
+  Plus,
+  MapPin,
+  Route,
+  X,
+  Trash2,
+  Search,
+  Edit,
+  CheckCircle,
+  Clock,
+  RefreshCw
+} from "lucide-react";
 
+// Update the Route interface to match backend response
 interface Route {
+  _id?: string;
   id: string;
+  company_id: string;
+  start_location: string;
+  end_location: string;
+  landmark_details_start: string;
+  landmark_details_end: string;
+  route_geojson: any;
+  company_name: string;
+  status?: "draft" | "saved";
+  createdAt?: string;
+  // Frontend transformed properties
   startLocation: string;
   endLocation: string;
   landmarkStart: string;
   landmarkEnd: string;
-  status?: "draft" | "saved";
-  createdAt?: string;
 }
 
 export default function AddRoutes() {
-  const { user } = useUser();
-  const [savedRoutes, setSavedRoutes] = useState<Route[]>([]); // Routes saved to backend and displayed in main table
-  const [pendingRoutes, setPendingRoutes] = useState<Route[]>([]); // Routes being created in dialog
+  const { user, token } = useUser(); // Get token from context
+  const [savedRoutes, setSavedRoutes] = useState<Route[]>([]);
+  const [pendingRoutes, setPendingRoutes] = useState<Route[]>([]);
   const [searchValue, setSearchValue] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
-  const [newRoute, setNewRoute] = useState<Route>({
+  const [fetchLoading, setFetchLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+
+  const [newRoute, setNewRoute] = useState({
     id: "",
-    startLocation: "",
-    endLocation: "",
-    landmarkStart: "",
-    landmarkEnd: "",
-    status: "draft",
-  });
-  const [editForm, setEditForm] = useState<Route>({
-    id: "",
-    startLocation: "",
-    endLocation: "",
-    landmarkStart: "",
-    landmarkEnd: "",
-    status: "draft",
+    start_location: "",
+    end_location: "",
+    landmark_details_start: "",
+    landmark_details_end: "",
+    status: "draft" as "draft",
   });
 
+  const [editForm, setEditForm] = useState<Route>({
+    id: "",
+    company_id: "",
+    start_location: "",
+    end_location: "",
+    landmark_details_start: "",
+    landmark_details_end: "",
+    route_geojson: null,
+    company_name: "",
+    status: "draft",
+    startLocation: "",
+    endLocation: "",
+    landmarkStart: "",
+    landmarkEnd: "",
+  });
+
+  // Fetch routes from backend
+  const fetchRoutes = async () => {
+    if (!user?.id || !token) {
+      setFetchError("User not authenticated");
+      return;
+    }
+
+    setFetchLoading(true);
+    setFetchError(null);
+
+    try {
+      const response = await fetch(`${apiBaseURL}/declared_routes/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Unauthorized - Please login again");
+        }
+        throw new Error(`Failed to fetch routes: ${response.statusText}`);
+      }
+
+      const routes: any[] = await response.json();
+
+      // Transform backend data to match frontend structure
+      const transformedRoutes: Route[] = routes.map(route => {
+        console.log("Raw route from backend:", route); // Debug
+        return {
+          ...route,
+          _id: route.id || route._id,  // Use id field (which comes from backend's _id)
+          id: route.id || route._id,    // Ensure id is set
+          startLocation: route.start_location,
+          endLocation: route.end_location,
+          landmarkStart: route.landmark_details_start,
+          landmarkEnd: route.landmark_details_end,
+          status: "saved" as const,
+          createdAt: route.createdAt || new Date().toISOString(),
+        };
+      });
+
+      console.log("Transformed routes:", transformedRoutes);
+      setSavedRoutes(transformedRoutes);
+    } catch (error) {
+      console.error("Error fetching routes:", error);
+      setFetchError(error instanceof Error ? error.message : "Failed to fetch routes");
+    } finally {
+      setFetchLoading(false);
+    }
+  };
+
+  // Fetch routes on component mount and when user changes
+  useEffect(() => {
+    if (user?.id && token) {
+      fetchRoutes();
+    }
+  }, [user?.id, token]);
+
   // Handle new route input changes
-  const handleNewRouteChange = (field: keyof Route, value: string) => {
+  const handleNewRouteChange = (field: keyof typeof newRoute, value: string) => {
     setNewRoute(prev => ({
       ...prev,
       [field]: value
@@ -76,7 +157,7 @@ export default function AddRoutes() {
   // Show add route dialog
   const handleShowAddRouteDialog = () => {
     setIsDialogOpen(true);
-    setPendingRoutes([]); // Clear pending routes when opening dialog
+    setPendingRoutes([]);
     setRouteError(null);
   };
 
@@ -86,10 +167,10 @@ export default function AddRoutes() {
     setPendingRoutes([]);
     setNewRoute({
       id: "",
-      startLocation: "",
-      endLocation: "",
-      landmarkStart: "",
-      landmarkEnd: "",
+      start_location: "",
+      end_location: "",
+      landmark_details_start: "",
+      landmark_details_end: "",
       status: "draft",
     });
     setRouteError(null);
@@ -97,7 +178,7 @@ export default function AddRoutes() {
 
   // Add route to pending list in dialog
   const handleAddRouteToPending = () => {
-    if (!newRoute.startLocation.trim() || !newRoute.endLocation.trim()) {
+    if (!newRoute.start_location.trim() || !newRoute.end_location.trim()) {
       setRouteError("Start and end locations are required");
       return;
     }
@@ -105,19 +186,26 @@ export default function AddRoutes() {
     const routeToAdd: Route = {
       ...newRoute,
       id: Date.now().toString(),
+      company_id: user?.id || "",
+      company_name: user?.company_name || "Your Company",
+      route_geojson: null,
       status: "draft",
       createdAt: new Date().toISOString(),
+      startLocation: newRoute.start_location,
+      endLocation: newRoute.end_location,
+      landmarkStart: newRoute.landmark_details_start,
+      landmarkEnd: newRoute.landmark_details_end,
     };
 
     setPendingRoutes(prev => [...prev, routeToAdd]);
-    
+
     // Reset form for next route
     setNewRoute({
       id: "",
-      startLocation: "",
-      endLocation: "",
-      landmarkStart: "",
-      landmarkEnd: "",
+      start_location: "",
+      end_location: "",
+      landmark_details_start: "",
+      landmark_details_end: "",
       status: "draft",
     });
     setRouteError(null);
@@ -128,14 +216,49 @@ export default function AddRoutes() {
     setPendingRoutes(prev => prev.filter(route => route.id !== routeId));
   };
 
-  // Remove route from main table
-  const handleRemoveRoute = (routeId: string) => {
-    setSavedRoutes(prev => prev.filter(route => route.id !== routeId));
+  // Remove route from main table and backend
+  const handleRemoveRoute = async (routeId: string) => {
+    try {
+      if (!token) {
+        setRouteError("No authentication token found");
+        return;
+      }
+
+      const res = await fetch(`${apiBaseURL}/declared_routes/${routeId}`, {
+        method: "DELETE",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Unauthorized - Please login again");
+        }
+        if (res.status === 404) {
+          throw new Error("Route not found");
+        }
+        const err = await res.json();
+        throw new Error(err.detail || `Failed to delete route: ${res.statusText}`);
+      }
+
+      const result = await res.json();
+
+      if (result.deleted) {
+        setSavedRoutes(prev => prev.filter(route => route.id !== routeId));
+      } else {
+        throw new Error("Failed to delete route");
+      }
+    } catch (error) {
+      console.error("Error deleting route:", error);
+      setRouteError(error instanceof Error ? error.message : "Failed to delete route");
+      throw error; // Re-throw to handle in the confirmation function
+    }
   };
 
   // Save all pending routes to backend and move to main table
   const handleSaveCreatedRoutes = async () => {
-    if (!user?.id) {
+    if (!user?.id || !token) {
       setRouteError("User not authenticated");
       return;
     }
@@ -149,50 +272,43 @@ export default function AddRoutes() {
     setRouteError(null);
 
     try {
-      // For now, save directly to local state (remove this try-catch if you want to skip API call entirely)
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      for (const route of pendingRoutes) {
+        const formData = new FormData();
+        formData.append("company_id", user.id);
+        formData.append("start_location", route.start_location);
+        formData.append("end_location", route.end_location);
+        formData.append("landmark_details_start", route.landmark_details_start || "");
+        formData.append("landmark_details_end", route.landmark_details_end || "");
 
-      // Move pending routes to saved routes
-      const savedRoutesToAdd = pendingRoutes.map(route => ({
-        ...route,
-        status: "saved" as const,
-        createdAt: new Date().toISOString(),
-      }));
-      
-      setSavedRoutes(prev => [...prev, ...savedRoutesToAdd]);
-      
+        const res = await fetch(`${apiBaseURL}/declared_routes/route-register`, {
+          method: "POST",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error("Unauthorized - Please login again");
+          }
+          const err = await res.json();
+          throw new Error(err.detail || `Failed to save route: ${res.statusText}`);
+        }
+
+        await res.json();
+      }
+
+      // Refresh routes from backend after saving
+      await fetchRoutes();
+
       // Clear pending routes and close dialog
       setPendingRoutes([]);
       handleCloseDialog();
-      
-      alert(`${pendingRoutes.length} route${pendingRoutes.length !== 1 ? 's' : ''} saved successfully!`);
 
-      // Uncomment below when you want to enable backend API call
-      /*
-      const response = await fetch(`${apiBaseURL}/super-admin/routes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fleet_id: user.id,
-          routes: pendingRoutes.map(route => ({
-            start_location: route.startLocation,
-            end_location: route.endLocation,
-            landmark_start: route.landmarkStart,
-            landmark_end: route.landmarkEnd,
-          }))
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save routes: ${response.statusText}`);
-      }
-      */
-
+      alert(`${pendingRoutes.length} route${pendingRoutes.length !== 1 ? "s" : ""} saved successfully!`);
     } catch (error) {
-      console.error('Error saving routes:', error);
+      console.error("Error saving routes:", error);
       setRouteError(error instanceof Error ? error.message : "Failed to save routes");
     } finally {
       setRouteLoading(false);
@@ -206,7 +322,7 @@ export default function AddRoutes() {
       route.endLocation.toLowerCase().includes(searchValue.toLowerCase()) ||
       route.landmarkStart.toLowerCase().includes(searchValue.toLowerCase()) ||
       route.landmarkEnd.toLowerCase().includes(searchValue.toLowerCase());
-    
+
     return matchesSearch;
   });
 
@@ -218,14 +334,29 @@ export default function AddRoutes() {
   };
 
   // Handle save edit
-  const handleSaveEdit = () => {
-    setSavedRoutes(prev => 
-      prev.map(route => 
-        route.id === selectedRoute?.id ? editForm : route
-      )
-    );
-    setSelectedRoute({ ...editForm });
-    setIsEditMode(false);
+  const handleSaveEdit = async () => {
+    try {
+      // Optional: Update backend here if you have an update endpoint
+      // const response = await fetch(`${apiBaseURL}/declared_routes/${editForm.id}`, {
+      //   method: "PUT",
+      //   headers: { 
+      //     "Content-Type": "application/json",
+      //     'Authorization': `Bearer ${token}`,
+      //   },
+      //   body: JSON.stringify(editForm)
+      // });
+
+      setSavedRoutes(prev =>
+        prev.map(route =>
+          route.id === selectedRoute?.id ? editForm : route
+        )
+      );
+      setSelectedRoute({ ...editForm });
+      setIsEditMode(false);
+    } catch (error) {
+      console.error("Error updating route:", error);
+      setRouteError("Failed to update route");
+    }
   };
 
   // Handle cancel edit
@@ -233,27 +364,49 @@ export default function AddRoutes() {
     setIsEditMode(false);
     setEditForm({
       id: "",
+      company_id: "",
+      start_location: "",
+      end_location: "",
+      landmark_details_start: "",
+      landmark_details_end: "",
+      route_geojson: null,
+      company_name: "",
+      status: "draft",
       startLocation: "",
       endLocation: "",
       landmarkStart: "",
       landmarkEnd: "",
-      status: "draft",
     });
   };
 
-  // Handle delete route with confirmation
-  const handleDeleteRoute = (routeId: string, routeInfo?: { startLocation: string; endLocation: string }) => {
-    setSavedRoutes(prev => prev.filter(route => route.id !== routeId));
-  };
-
   // Handle delete with confirmation
-  const confirmAndDeleteRoute = (route: Route) => {
+  const confirmAndDeleteRoute = async (route: Route) => {
+    console.log("Route to delete:", route); // Debug log
+    console.log("Route _id:", route._id);   // Debug log
+    console.log("Route id:", route.id);     // Debug log
+
     const confirmed = window.confirm(
       `Are you sure you want to delete the route from "${route.startLocation}" to "${route.endLocation}"?\n\nThis action cannot be undone.`
     );
-    
+
     if (confirmed) {
-      handleDeleteRoute(route.id);
+      const routeId = route._id || route.id;
+      console.log("Using route ID:", routeId); // Debug log
+
+      if (!routeId || routeId === 'undefined') {
+        alert("Error: Invalid route ID");
+        return;
+      }
+
+      setDeleteLoading(route.id);
+      try {
+        await handleRemoveRoute(routeId);
+        alert("Route deleted successfully!");
+      } catch (error) {
+        console.error("Delete failed:", error);
+      } finally {
+        setDeleteLoading(null);
+      }
     }
   };
 
@@ -273,7 +426,32 @@ export default function AddRoutes() {
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
 
         <h1 className="text-3xl font-bold text-foreground">Optimize Fleet Coverage</h1>
-            <p className="text-muted-foreground">Efficiently add and manage multiple routes for your fleet company.</p>
+        <p className="text-muted-foreground">Efficiently add and manage multiple routes for your fleet company.</p>
+
+        {/* Loading and Error States */}
+        {fetchLoading && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+            <p className="text-blue-400 text-sm font-medium">
+              Loading routes...
+            </p>
+          </div>
+        )}
+
+        {fetchError && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+            <p className="text-red-400 text-sm font-medium">
+              {fetchError}
+            </p>
+            <Button
+              onClick={fetchRoutes}
+              variant="outline"
+              size="sm"
+              className="mt-2"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
 
         {/* Summary Stats */}
         <div className="flex flex-wrap gap-4">
@@ -338,10 +516,21 @@ export default function AddRoutes() {
             />
           </div>
 
+          {/* Refresh Button */}
+          <Button
+            onClick={fetchRoutes}
+            variant="outline"
+            disabled={fetchLoading}
+            className="cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${fetchLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+
           {/* Add Route Button */}
-          <Button 
+          <Button
             onClick={handleShowAddRouteDialog}
-            className="cursor-pointe"
+            className="cursor-pointer"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Route
@@ -370,12 +559,12 @@ export default function AddRoutes() {
                 </thead>
                 <tbody>
                   {filteredRoutes.map((route) => (
-                    <tr 
-                      key={route.id} 
+                    <tr
+                      key={route.id}
                       className="border-b border-border hover:bg-muted/50 transition-colors"
                     >
-                      <td 
-                        className="py-4 px-4 cursor-pointer" 
+                      <td
+                        className="py-4 px-4 cursor-pointer"
                         onClick={() => setSelectedRoute(route)}
                       >
                         <div className="flex items-center gap-2">
@@ -383,8 +572,8 @@ export default function AddRoutes() {
                           <span className="font-medium text-foreground">{route.startLocation}</span>
                         </div>
                       </td>
-                      <td 
-                        className="py-4 px-4 cursor-pointer" 
+                      <td
+                        className="py-4 px-4 cursor-pointer"
                         onClick={() => setSelectedRoute(route)}
                       >
                         <div className="flex items-center gap-2">
@@ -392,23 +581,23 @@ export default function AddRoutes() {
                           <span className="font-medium text-foreground">{route.endLocation}</span>
                         </div>
                       </td>
-                      <td 
-                        className="py-4 px-4 cursor-pointer" 
+                      <td
+                        className="py-4 px-4 cursor-pointer"
                         onClick={() => setSelectedRoute(route)}
                       >
                         <span className="text-muted-foreground">{route.landmarkStart || "N/A"}</span>
                       </td>
-                      <td 
-                        className="py-4 px-4 cursor-pointer" 
+                      <td
+                        className="py-4 px-4 cursor-pointer"
                         onClick={() => setSelectedRoute(route)}
                       >
                         <span className="text-muted-foreground">{route.landmarkEnd || "N/A"}</span>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -427,8 +616,13 @@ export default function AddRoutes() {
                               e.preventDefault();
                               confirmAndDeleteRoute(route);
                             }}
+                            disabled={deleteLoading === route.id}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {deleteLoading === route.id ? (
+                              <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </td>
@@ -438,7 +632,7 @@ export default function AddRoutes() {
               </table>
             </div>
 
-            {filteredRoutes.length === 0 && (
+            {filteredRoutes.length === 0 && !fetchLoading && (
               <div className="text-center py-8">
                 <Route className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">No routes found</h3>
@@ -451,7 +645,7 @@ export default function AddRoutes() {
                   <Button
                     onClick={handleShowAddRouteDialog}
                     variant="outline"
-                    className="mt-4 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                    className="mt-4 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white cursor-pointer"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Create Your First Route
@@ -480,7 +674,7 @@ export default function AddRoutes() {
                 Add New Routes
               </DialogTitle>
             </DialogHeader>
-            
+
             <div className="flex-1 overflow-hidden flex flex-col space-y-6">
               {/* Route Form */}
               <div className="bg-white/5 rounded-lg p-6 border border-white/10 flex-shrink-0">
@@ -489,8 +683,8 @@ export default function AddRoutes() {
                   <div className="space-y-2">
                     <Label className="text-white text-sm font-medium">Start Location *</Label>
                     <Input
-                      value={newRoute.startLocation}
-                      onChange={(e) => handleNewRouteChange('startLocation', e.target.value)}
+                      value={newRoute.start_location}
+                      onChange={(e) => handleNewRouteChange('start_location', e.target.value)}
                       placeholder="Enter start location"
                       className="text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
                     />
@@ -499,8 +693,8 @@ export default function AddRoutes() {
                   <div className="space-y-2">
                     <Label className="text-white text-sm font-medium">End Location *</Label>
                     <Input
-                      value={newRoute.endLocation}
-                      onChange={(e) => handleNewRouteChange('endLocation', e.target.value)}
+                      value={newRoute.end_location}
+                      onChange={(e) => handleNewRouteChange('end_location', e.target.value)}
                       placeholder="Enter end location"
                       className="text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
                     />
@@ -509,8 +703,8 @@ export default function AddRoutes() {
                   <div className="space-y-2">
                     <Label className="text-white text-sm font-medium">Start Landmark</Label>
                     <textarea
-                      value={newRoute.landmarkStart}
-                      onChange={(e) => handleNewRouteChange('landmarkStart', e.target.value)}
+                      value={newRoute.landmark_details_start}
+                      onChange={(e) => handleNewRouteChange('landmark_details_start', e.target.value)}
                       placeholder="Enter landmark at start location"
                       className="w-full px-3 py-2 border border-white/20 bg-white/10 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 resize-none text-white"
                       rows={2}
@@ -520,8 +714,8 @@ export default function AddRoutes() {
                   <div className="space-y-2">
                     <Label className="text-white text-sm font-medium">End Landmark</Label>
                     <textarea
-                      value={newRoute.landmarkEnd}
-                      onChange={(e) => handleNewRouteChange('landmarkEnd', e.target.value)}
+                      value={newRoute.landmark_details_end}
+                      onChange={(e) => handleNewRouteChange('landmark_details_end', e.target.value)}
                       placeholder="Enter landmark at end location"
                       className="w-full px-3 py-2 border border-white/20 bg-white/10 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 resize-none text-white"
                       rows={2}
@@ -532,7 +726,7 @@ export default function AddRoutes() {
                 <div className="flex justify-end mt-4">
                   <Button
                     onClick={handleAddRouteToPending}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add to List
@@ -549,7 +743,7 @@ export default function AddRoutes() {
                       {pendingRoutes.length} route{pendingRoutes.length !== 1 ? 's' : ''} ready
                     </Badge>
                   </div>
-                  
+
                   <div className="flex-1 overflow-y-auto px-6 pb-6">
                     <div className="space-y-3">
                       {pendingRoutes.map((route) => (
@@ -558,16 +752,16 @@ export default function AddRoutes() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <MapPin className="w-4 h-4 text-green-400" />
-                                <span className="text-white font-medium">{route.startLocation}</span>
+                                <span className="text-white font-medium">{route.start_location}</span>
                                 <span className="text-white/60">→</span>
                                 <MapPin className="w-4 h-4 text-red-400" />
-                                <span className="text-white font-medium">{route.endLocation}</span>
+                                <span className="text-white font-medium">{route.end_location}</span>
                               </div>
-                              {(route.landmarkStart || route.landmarkEnd) && (
+                              {(route.landmark_details_start || route.landmark_details_end) && (
                                 <div className="text-sm text-white/70">
-                                  {route.landmarkStart && <span>Start: {route.landmarkStart}</span>}
-                                  {route.landmarkStart && route.landmarkEnd && <span> | </span>}
-                                  {route.landmarkEnd && <span>End: {route.landmarkEnd}</span>}
+                                  {route.landmark_details_start && <span>Start: {route.landmark_details_start}</span>}
+                                  {route.landmark_details_start && route.landmark_details_end && <span> | </span>}
+                                  {route.landmark_details_end && <span>End: {route.landmark_details_end}</span>}
                                 </div>
                               )}
                             </div>
@@ -575,7 +769,7 @@ export default function AddRoutes() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleRemoveFromPending(route.id)}
-                              className="text-red-400 border-red-400 hover:bg-red-400 hover:text-white"
+                              className="text-red-400 border-red-400 hover:bg-red-400 hover:text-white cursor-pointer"
                             >
                               <X className="w-4 h-4" />
                             </Button>
@@ -601,14 +795,14 @@ export default function AddRoutes() {
                 <Button
                   onClick={handleCloseDialog}
                   variant="outline"
-                  className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+                  className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800 cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSaveCreatedRoutes}
                   disabled={pendingRoutes.length === 0 || routeLoading}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-green-500/25 disabled:opacity-50"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-green-500/25 disabled:opacity-50 cursor-pointer"
                 >
                   {routeLoading ? (
                     <div className="flex items-center gap-2">
@@ -628,19 +822,26 @@ export default function AddRoutes() {
         </Dialog>
 
         {/* Route Details Dialog */}
-        <Dialog 
-          open={selectedRoute !== null} 
+        <Dialog
+          open={selectedRoute !== null}
           onOpenChange={(open) => {
             if (!open) {
               setSelectedRoute(null);
               setIsEditMode(false);
               setEditForm({
                 id: "",
+                company_id: "",
+                start_location: "",
+                end_location: "",
+                landmark_details_start: "",
+                landmark_details_end: "",
+                route_geojson: null,
+                company_name: "",
+                status: "draft",
                 startLocation: "",
                 endLocation: "",
                 landmarkStart: "",
                 landmarkEnd: "",
-                status: "draft",
               });
             }
           }}
@@ -664,7 +865,7 @@ export default function AddRoutes() {
                         {isEditMode ? (
                           <Input
                             value={editForm.startLocation}
-                            onChange={(e) => setEditForm({...editForm, startLocation: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, startLocation: e.target.value })}
                             placeholder="Enter start location"
                           />
                         ) : (
@@ -676,7 +877,7 @@ export default function AddRoutes() {
                         {isEditMode ? (
                           <Input
                             value={editForm.endLocation}
-                            onChange={(e) => setEditForm({...editForm, endLocation: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, endLocation: e.target.value })}
                             placeholder="Enter end location"
                           />
                         ) : (
@@ -688,7 +889,7 @@ export default function AddRoutes() {
                         {isEditMode ? (
                           <textarea
                             value={editForm.landmarkStart}
-                            onChange={(e) => setEditForm({...editForm, landmarkStart: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, landmarkStart: e.target.value })}
                             placeholder="Enter landmark at start location"
                             className="w-full px-3 py-2 border border-input rounded-lg resize-none"
                             rows={2}
@@ -702,7 +903,7 @@ export default function AddRoutes() {
                         {isEditMode ? (
                           <textarea
                             value={editForm.landmarkEnd}
-                            onChange={(e) => setEditForm({...editForm, landmarkEnd: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, landmarkEnd: e.target.value })}
                             placeholder="Enter landmark at end location"
                             className="w-full px-3 py-2 border border-input rounded-lg resize-none"
                             rows={2}
@@ -717,14 +918,14 @@ export default function AddRoutes() {
                   <div className="flex gap-3 pt-4 border-t">
                     {isEditMode ? (
                       <>
-                        <Button 
+                        <Button
                           className="flex-1 cursor-pointer"
                           onClick={handleSaveEdit}
                         >
                           Save Changes
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="flex-1 cursor-pointer"
                           onClick={handleCancelEdit}
                         >
@@ -732,7 +933,7 @@ export default function AddRoutes() {
                         </Button>
                       </>
                     ) : (
-                      <Button 
+                      <Button
                         className="flex-1 cursor-pointer"
                         onClick={() => {
                           setEditForm({ ...selectedRoute });
