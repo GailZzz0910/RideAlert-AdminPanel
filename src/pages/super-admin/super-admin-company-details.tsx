@@ -29,6 +29,7 @@ export default function SuperAdminCompanyDetails() {
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [totalVehiclesForFleet, setTotalVehiclesForFleet] = useState<number | null>(null);
 
   const fleetId = company?.fleet_id || companyId; // adjust based on your schema
   const { vehicles, loading: vehiclesLoading, error: vehiclesError } = useFleetVehicles(fleetId);
@@ -130,6 +131,11 @@ export default function SuperAdminCompanyDetails() {
         ws.onclose = () => {
           if (isMounted) {
             console.log("Company details WebSocket disconnected");
+            // When websocket disconnects we can also attempt to fetch counts via HTTP
+            // (if company info was already set)
+            if (company && company._id) {
+              fetchFleetCounts(company._id);
+            }
           }
         };
       } catch (err) {
@@ -151,6 +157,31 @@ export default function SuperAdminCompanyDetails() {
       }
     };
   }, [companyId]);
+
+  // Fetch per-fleet counts and set the total for this company
+  const fetchFleetCounts = async (fleetId: string) => {
+    try {
+      // Use the stats endpoint (non-conflicting)
+      const res = await fetch(`${apiBaseURL}/vehicles/stats/counts`, { headers: { 'Content-Type': 'application/json' } });
+      if (!res.ok) {
+        console.warn('vehicles/stats/counts response not ok', res.status);
+        return;
+      }
+      const json = await res.json();
+      if (json && Array.isArray(json.counts)) {
+        const match = json.counts.find((c: any) => c.fleet_id === fleetId || c.fleet_id.endsWith(fleetId));
+        if (match) {
+          setTotalVehiclesForFleet(match.count);
+          return;
+        }
+      }
+      // fallback to vehicle list length (if any)
+      setTotalVehiclesForFleet(null);
+    } catch (err) {
+      console.error('Failed to fetch fleet counts', err);
+      setTotalVehiclesForFleet(null);
+    }
+  };
 
   const getStatusColor = (status: boolean | string) => {
     // Handle both boolean and string status
@@ -264,8 +295,8 @@ export default function SuperAdminCompanyDetails() {
                   <Car className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Max Vehicles</p>
-                  <p className="text-2xl font-bold text-foreground">{company.max_vehicles || 0}</p>
+                  <p className="text-sm text-muted-foreground">Total Vehicles</p>
+                  <p className="text-2xl font-bold text-foreground">{totalVehiclesForFleet !== null ? totalVehiclesForFleet : vehicles.length}</p>
                 </div>
               </div>
             </CardContent>
