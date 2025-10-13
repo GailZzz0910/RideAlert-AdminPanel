@@ -215,7 +215,7 @@ import {
   Clock,
   Mail
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -247,10 +247,236 @@ export default function CompanyManagement() {
   const [editForm, setEditForm] = useState<any>({});
   const fleets = useAllFleetCompanies();
 
+  // WebSocket state
+  const [verifiedVehicleCount, setVerifiedVehicleCount] = useState<number | null>(null);
+  const [vehicleCountsByFleet, setVehicleCountsByFleet] = useState<Record<string, number>>({});
+  const [totalStats, setTotalStats] = useState({
+    total_vehicles: 0,
+    total_users: 0,
+    total_fleets: 0
+  });
+
+  // WebSocket refs
+  const statsCountSocketRef = useRef<WebSocket | null>(null);
+  const statsVerifiedSocketRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const getCompanyKey = (company: any, index: number) => {
     return company._id || company.id || `company-${index}`;
   };
 
+  // WebSocket connection management
+  const connectWebSockets = () => {
+    // Close existing connections
+    if (statsCountSocketRef.current) {
+      statsCountSocketRef.current.close();
+    }
+    if (statsVerifiedSocketRef.current) {
+      statsVerifiedSocketRef.current.close();
+    }
+
+    // Get WebSocket URL (convert http to ws)
+    const wsBaseURL = apiBaseURL.replace('http', 'ws');
+
+    // Connect to /stats/count WebSocket
+    try {
+      const countSocket = new WebSocket(`${wsBaseURL}/vehicles/stats/count`);
+      statsCountSocketRef.current = countSocket;
+
+      countSocket.onopen = () => {
+        console.log('Connected to /stats/count WebSocket');
+      };
+
+      countSocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'stats_count') {
+            console.log('Received stats count update:', data.data);
+            setTotalStats(data.data);
+          }
+        } catch (error) {
+          console.error('Error parsing stats count message:', error);
+        }
+      };
+
+      countSocket.onclose = (event) => {
+        console.log('Disconnected from /stats/count WebSocket:', event.code, event.reason);
+        // Attempt reconnect after 5 seconds
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+        reconnectTimeoutRef.current = setTimeout(connectWebSockets, 5000);
+      };
+
+      countSocket.onerror = (error) => {
+        console.error('WebSocket /stats/count error:', error);
+      };
+    } catch (error) {
+      console.error('Failed to create /stats/count WebSocket:', error);
+    }
+
+    // Connect to /stats/verified WebSocket
+    try {
+      const verifiedSocket = new WebSocket(`${wsBaseURL}/vehicles/stats/verified`);
+      statsVerifiedSocketRef.current = verifiedSocket;
+
+      verifiedSocket.onopen = () => {
+        console.log('Connected to /stats/verified WebSocket');
+      };
+
+      verifiedSocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'stats_verified') {
+            console.log('Received stats verified update:', data.data);
+            setVerifiedVehicleCount(data.data.verified_vehicles);
+
+            // Also update the vehicle counts by fleet when we get verified updates
+            // We need to refetch the fleet counts since the verified count changed
+            fetchVehicleCountsByFleet();
+          }
+        } catch (error) {
+          console.error('Error parsing stats verified message:', error);
+        }
+      };
+
+      verifiedSocket.onclose = (event) => {
+        console.log('Disconnected from /stats/verified WebSocket:', event.code, event.reason);
+        // Reconnect will be handled by the main reconnect timer
+      };
+
+      verifiedSocket.onerror = (error) => {
+        console.error('WebSocket /stats/verified error:', error);
+      };
+    } catch (error) {
+      console.error('Failed to create /stats/verified WebSocket:', error);
+    }
+  };
+
+  // Fetch vehicle counts by fleet function
+  const fetchVehicleCountsByFleet = async () => {
+    try {
+      const countsRes = await api.get(`${apiBaseURL}/vehicles/stats/counts-http`);
+      console.debug("/vehicles/stats/counts response:", countsRes && countsRes.data);
+      if (countsRes && countsRes.data && Array.isArray(countsRes.data.counts)) {
+        const map: Record<string, number> = {};
+        countsRes.data.counts.forEach((item: any) => {
+          map[item.fleet_id] = item.count;
+        });
+        console.debug("constructed vehicleCountsByFleet map:", map);
+        setVehicleCountsByFleet(map);
+      }
+    } catch (err) {
+      console.error("Failed to load per-fleet vehicle counts:", err);
+    }
+  };
+
+  // Send ping to keep connections alive
+  const sendPing = () => {
+    if (statsCountSocketRef.current?.readyState === WebSocket.OPEN) {
+      statsCountSocketRef.current.send('ping');
+    }
+    if (statsVerifiedSocketRef.current?.readyState === WebSocket.OPEN) {
+      statsVerifiedSocketRef.current.send('ping');
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    // Connect WebSockets
+    connectWebSockets();
+
+    // Set up ping interval (every 30 seconds)
+    const pingInterval = setInterval(sendPing, 30000);
+
+    // Also fetch initial data via HTTP as fallback
+    async function fetchInitialData() {
+      try {
+        // Fetch verified vehicle count
+        const verifiedRes = await api.get(`${apiBaseURL}/vehicles/stats/verified-http`);
+        if (mounted && verifiedRes && verifiedRes.data) {
+          setVerifiedVehicleCount(verifiedRes.data.verified_vehicle_count ?? 0);
+        }
+
+        // Fetch per-fleet vehicle counts
+        await fetchVehicleCountsByFleet();
+      } catch (err) {
+        console.error("Failed to load initial data:", err);
+      }
+    }
+
+    fetchInitialData();
+
+    return () => {
+      mounted = false;
+
+      // Cleanup
+      if (statsCountSocketRef.current) {
+        statsCountSocketRef.current.close();
+      }
+      if (statsVerifiedSocketRef.current) {
+        statsVerifiedSocketRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      clearInterval(pingInterval);
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    // Connect WebSockets
+    connectWebSockets();
+
+    // Set up ping interval (every 30 seconds)
+    const pingInterval = setInterval(sendPing, 30000);
+
+    // Also fetch initial data via HTTP as fallback
+    async function fetchInitialData() {
+      try {
+        // Fetch verified vehicle count
+        const verifiedRes = await api.get(`${apiBaseURL}/vehicles/stats/verified-http`);
+        if (mounted && verifiedRes && verifiedRes.data) {
+          setVerifiedVehicleCount(verifiedRes.data.verified_vehicle_count ?? 0);
+        }
+
+        // Fetch per-fleet vehicle counts
+        const countsRes = await api.get(`${apiBaseURL}/vehicles/stats/counts-http`);
+        console.debug("/vehicles/stats/counts response:", countsRes && countsRes.data);
+        if (countsRes && countsRes.data && Array.isArray(countsRes.data.counts)) {
+          const map: Record<string, number> = {};
+          countsRes.data.counts.forEach((item: any) => {
+            map[item.fleet_id] = item.count;
+          });
+          console.debug("constructed vehicleCountsByFleet map:", map);
+          if (mounted) setVehicleCountsByFleet(map);
+        }
+      } catch (err) {
+        console.error("Failed to load initial data:", err);
+      }
+    }
+
+    fetchInitialData();
+
+    return () => {
+      mounted = false;
+
+      // Cleanup
+      if (statsCountSocketRef.current) {
+        statsCountSocketRef.current.close();
+      }
+      if (statsVerifiedSocketRef.current) {
+        statsVerifiedSocketRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      clearInterval(pingInterval);
+    };
+  }, []);
 
   const handleDeleteCompany = async (companyId: string) => {
     if (!confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
@@ -312,7 +538,6 @@ export default function CompanyManagement() {
     setEditForm({});
   };
 
-
   const filteredCompanies = fleets.filter((company: any) => {
     // First, filter by role 'admin'
     if (company.role !== 'admin') {
@@ -341,50 +566,6 @@ export default function CompanyManagement() {
     .filter((c: any) => c.role === 'admin' && c.status === 'active')
     .reduce((total: number, company: any) => total + (company.vehiclesCount || 0), 0);
 
-  const [verifiedVehicleCount, setVerifiedVehicleCount] = useState<number | null>(null);
-  const [vehicleCountsByFleet, setVehicleCountsByFleet] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function fetchVerifiedVehicleCount() {
-      try {
-        const res = await api.get(`${apiBaseURL}/vehicles/stats/verified`);
-        if (mounted && res && res.data) {
-          setVerifiedVehicleCount(res.data.verified_vehicle_count ?? 0);
-        }
-      } catch (err) {
-        console.error("Failed to load verified vehicle count:", err);
-        if (mounted) setVerifiedVehicleCount(0);
-      }
-    }
-
-    // Also fetch per-fleet vehicle counts as an initial snapshot
-    async function fetchVehicleCountsByFleet() {
-      try {
-        const res = await api.get(`${apiBaseURL}/vehicles/stats/counts`);
-        console.debug("/vehicles/stats/counts response:", res && res.data);
-        if (res && res.data && Array.isArray(res.data.counts)) {
-          const map: Record<string, number> = {};
-          res.data.counts.forEach((item: any) => {
-            map[item.fleet_id] = item.count;
-          });
-          console.debug("constructed vehicleCountsByFleet map:", map);
-          console.debug("fleet ids from frontend fleets:", fleets.map((f:any)=>f.id || f._id));
-          if (mounted) setVehicleCountsByFleet(map);
-        }
-      } catch (err) {
-        console.error("Failed to load per-fleet vehicle counts:", err);
-      }
-    }
-    fetchVerifiedVehicleCount();
-    fetchVehicleCountsByFleet();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   // Helper to resolve vehicle count for a company robustly
   const getVehicleCountForCompany = (company: any) => {
     const possibleKeys = [company.id, company._id, company._id?.toString(), company.id?.toString()];
@@ -403,11 +584,11 @@ export default function CompanyManagement() {
     }
 
     // Nothing found — fall back to the fleet's vehiclesCount (max_vehicles)
-      // If the server didn't provide an actual vehicle count, treat it as 0 (don't use plan max_vehicles)
-      if (company.vehiclesCount !== undefined && company.vehiclesCount !== null) {
-        return company.vehiclesCount;
-      }
-      return 0;
+    // If the server didn't provide an actual vehicle count, treat it as 0 (don't use plan max_vehicles)
+    if (company.vehiclesCount !== undefined && company.vehiclesCount !== null) {
+      return company.vehiclesCount;
+    }
+    return 0;
   };
 
   const getStatusColor = (status: string) =>
@@ -456,7 +637,19 @@ export default function CompanyManagement() {
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
 
         <h1 className="text-3xl font-bold text-foreground">Approved Companies</h1>
-            <p className="text-muted-foreground">Oversee the approved companies and manage them.</p>
+        <p className="text-muted-foreground">Oversee the approved companies and manage them.</p>
+
+        {/* WebSocket Connection Status */}
+        <div className="flex gap-2 text-sm">
+          <div className={`flex items-center gap-1 ${statsCountSocketRef.current?.readyState === WebSocket.OPEN ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`w-2 h-2 rounded-full ${statsCountSocketRef.current?.readyState === WebSocket.OPEN ? 'bg-green-500' : 'bg-red-500'}`} />
+            Stats Count: {statsCountSocketRef.current?.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected'}
+          </div>
+          <div className={`flex items-center gap-1 ${statsVerifiedSocketRef.current?.readyState === WebSocket.OPEN ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`w-2 h-2 rounded-full ${statsVerifiedSocketRef.current?.readyState === WebSocket.OPEN ? 'bg-green-500' : 'bg-red-500'}`} />
+            Stats Verified: {statsVerifiedSocketRef.current?.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected'}
+          </div>
+        </div>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -515,14 +708,14 @@ export default function CompanyManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total Vehicles</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {verifiedVehicleCount !== null ? verifiedVehicleCount : totalAdminVehicles}
+                    {verifiedVehicleCount !== null ? verifiedVehicleCount : 'Loading...'}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
-        
+
         {/* Controls */}
         <div className="flex items-center gap-4">
           {/* Search */}
@@ -861,7 +1054,7 @@ export default function CompanyManagement() {
                           <Edit className="w-4 h-4 mr-2" />
                           Edit Company
                         </Button>
-                    
+
                       </>
                     )}
                   </div>
