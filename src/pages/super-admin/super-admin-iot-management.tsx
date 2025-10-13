@@ -99,6 +99,25 @@ export default function SuperAdminIOTManagement() {
               }));
 
               setDevices(mapped);
+
+              // If a device is currently selected in the details dialog, update it from the latest payload
+              if (selectedDevice) {
+                const updated = mapped.find((m: any) => m._id === selectedDevice._id || m.objectId === selectedDevice.objectId);
+                if (updated) {
+                  // Update selectedDevice so UI reflects real-time status change
+                  setSelectedDevice(prev => ({ ...(prev || {}), ...updated }));
+
+                  // If not editing, also sync the editForm so the dialog shows up-to-date values
+                  if (!isEditMode) {
+                    setEditForm(prev => ({ ...(prev || {}),
+                      objectId: updated.objectId,
+                      deviceModel: updated.deviceModel,
+                      status: updated.status,
+                      companyName: updated.companyName,
+                    }));
+                  }
+                }
+              }
             }
           } catch (err) {
             console.error("Error parsing WebSocket message:", err);
