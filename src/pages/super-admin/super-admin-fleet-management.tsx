@@ -373,9 +373,9 @@ export default function SuperAdminFleetManagement() {
                   <Building className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="text-sm text-muted-foreground">Total Pending Request</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {totalCount}
+                    {pendingCount}
                   </p>
                 </div>
               </div>
