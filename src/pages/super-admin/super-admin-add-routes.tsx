@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Upload, File, X, Route, Search, MapPin, Badge } from "lucide-react";
+import { Upload, File, X, Route, Search, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiBaseURL } from "@/utils/api";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
 interface Route {
