@@ -237,6 +237,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAllFleetCompanies } from "./utils/useAllFleetCompanies";
 import { apiBaseURL } from "@/utils/api";
+import api from "@/utils/api";
 
 export default function CompanyManagement() {
   const [searchValue, setSearchValue] = useState("");
@@ -333,9 +334,72 @@ export default function CompanyManagement() {
   const totalAdminCompanies = fleets.filter((c: any) => c.role === 'admin').length;
   const activeAdminCompanies = fleets.filter((c: any) => c.role === 'admin' && c.status === 'active').length;
   const inactiveAdminCompanies = fleets.filter((c: any) => c.role === 'admin' && c.status === 'inactive').length;
+  // Total vehicles should only include verified/approved companies.
+  // Here we treat a verified company as one with role === 'admin' and status === 'active'.
+  // If your backend exposes a different verification flag (e.g. `verified`), switch the filter accordingly.
   const totalAdminVehicles = fleets
-    .filter((c: any) => c.role === 'admin')
+    .filter((c: any) => c.role === 'admin' && c.status === 'active')
     .reduce((total: number, company: any) => total + (company.vehiclesCount || 0), 0);
+
+  const [verifiedVehicleCount, setVerifiedVehicleCount] = useState<number | null>(null);
+  const [vehicleCountsByFleet, setVehicleCountsByFleet] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    async function fetchVerifiedVehicleCount() {
+      try {
+  const res = await api.get(`${apiBaseURL}/vehicles/stats/verified`);
+        if (mounted && res && res.data) {
+          setVerifiedVehicleCount(res.data.verified_vehicle_count ?? 0);
+        }
+      } catch (err) {
+        console.error("Failed to load verified vehicle count:", err);
+        if (mounted) setVerifiedVehicleCount(0);
+      }
+    }
+    fetchVerifiedVehicleCount();
+    // Also fetch per-fleet vehicle counts
+    async function fetchVehicleCountsByFleet() {
+      try {
+  const res = await api.get(`${apiBaseURL}/vehicles/stats/counts`);
+        console.debug("/vehicles/stats/counts response:", res && res.data);
+        if (res && res.data && Array.isArray(res.data.counts)) {
+          const map: Record<string, number> = {};
+          res.data.counts.forEach((item: any) => {
+            map[item.fleet_id] = item.count;
+          });
+          console.debug("constructed vehicleCountsByFleet map:", map);
+          console.debug("fleet ids from frontend fleets:", fleets.map((f:any)=>f.id || f._id));
+          if (mounted) setVehicleCountsByFleet(map);
+        }
+      } catch (err) {
+        console.error("Failed to load per-fleet vehicle counts:", err);
+      }
+    }
+    fetchVehicleCountsByFleet();
+    return () => { mounted = false; };
+  }, []);
+
+  // Helper to resolve vehicle count for a company robustly
+  const getVehicleCountForCompany = (company: any) => {
+    const possibleKeys = [company.id, company._id, company._id?.toString(), company.id?.toString()];
+    // Try direct lookup first
+    for (const k of possibleKeys) {
+      if (k && vehicleCountsByFleet[k] !== undefined) return vehicleCountsByFleet[k];
+    }
+
+    // Fallback: attempt to find a map key that endsWith the company id
+    const idStr = (company.id || company._id || "").toString();
+    if (idStr) {
+      for (const key of Object.keys(vehicleCountsByFleet)) {
+        if (key === idStr) return vehicleCountsByFleet[key];
+        if (key.endsWith(idStr)) return vehicleCountsByFleet[key];
+      }
+    }
+
+    // Nothing found — fall back to the fleet's vehiclesCount (max_vehicles)
+    return company.vehiclesCount || 0;
+  };
 
   const getStatusColor = (status: string) =>
     status === "active"
@@ -442,7 +506,7 @@ export default function CompanyManagement() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total Vehicles</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {totalAdminVehicles}
+                    {verifiedVehicleCount !== null ? verifiedVehicleCount : totalAdminVehicles}
                   </p>
                 </div>
               </div>
@@ -526,7 +590,7 @@ export default function CompanyManagement() {
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
                           <Car className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium text-foreground">{company.vehiclesCount || 0}</span>
+                          <span className="font-medium text-foreground">{getVehicleCountForCompany(company)}</span>
                         </div>
                       </td>
                       <td className="py-4 px-4">
@@ -672,7 +736,7 @@ export default function CompanyManagement() {
                         <Car className="w-4 h-4 text-muted-foreground" />
                         <div>
                           <span className="text-sm text-muted-foreground">Total Vehicles</span>
-                          <p className="font-medium">{selectedCompany.vehiclesCount || 0}</p>
+                          <p className="font-medium">{getVehicleCountForCompany(selectedCompany)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
