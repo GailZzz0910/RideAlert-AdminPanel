@@ -346,9 +346,10 @@ export default function CompanyManagement() {
 
   useEffect(() => {
     let mounted = true;
+
     async function fetchVerifiedVehicleCount() {
       try {
-  const res = await api.get(`${apiBaseURL}/vehicles/stats/verified`);
+        const res = await api.get(`${apiBaseURL}/vehicles/stats/verified`);
         if (mounted && res && res.data) {
           setVerifiedVehicleCount(res.data.verified_vehicle_count ?? 0);
         }
@@ -357,11 +358,11 @@ export default function CompanyManagement() {
         if (mounted) setVerifiedVehicleCount(0);
       }
     }
-    fetchVerifiedVehicleCount();
-    // Also fetch per-fleet vehicle counts
+
+    // Also fetch per-fleet vehicle counts as an initial snapshot
     async function fetchVehicleCountsByFleet() {
       try {
-  const res = await api.get(`${apiBaseURL}/vehicles/stats/counts`);
+        const res = await api.get(`${apiBaseURL}/vehicles/stats/counts`);
         console.debug("/vehicles/stats/counts response:", res && res.data);
         if (res && res.data && Array.isArray(res.data.counts)) {
           const map: Record<string, number> = {};
@@ -376,8 +377,12 @@ export default function CompanyManagement() {
         console.error("Failed to load per-fleet vehicle counts:", err);
       }
     }
+    fetchVerifiedVehicleCount();
     fetchVehicleCountsByFleet();
-    return () => { mounted = false; };
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Helper to resolve vehicle count for a company robustly
@@ -398,7 +403,11 @@ export default function CompanyManagement() {
     }
 
     // Nothing found — fall back to the fleet's vehiclesCount (max_vehicles)
-    return company.vehiclesCount || 0;
+      // If the server didn't provide an actual vehicle count, treat it as 0 (don't use plan max_vehicles)
+      if (company.vehiclesCount !== undefined && company.vehiclesCount !== null) {
+        return company.vehiclesCount;
+      }
+      return 0;
   };
 
   const getStatusColor = (status: string) =>
@@ -596,11 +605,11 @@ export default function CompanyManagement() {
                       <td className="py-4 px-4">
                         <div className="flex flex-col">
                           <span className="text-sm text-foreground">
-                            {company.createdAt ? formatDate(company.createdAt) : "N/A"}
+                            {company.approved_in ? formatDate(company.approved_in) : (company.createdAt ? formatDate(company.createdAt) : "N/A")}
                           </span>
-                          {company.createdAt && (
+                          {(company.approved_in || company.createdAt) && (
                             <span className="text-xs text-muted-foreground">
-                              {formatTimeSince(company.createdAt)}
+                              {formatTimeSince(company.approved_in || company.createdAt)}
                             </span>
                           )}
                         </div>
