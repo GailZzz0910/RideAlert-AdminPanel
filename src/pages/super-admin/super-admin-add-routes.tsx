@@ -240,7 +240,7 @@ export default function SuperAdminAddRoutes() {
 
     try {
       const token = localStorage.getItem("token");
-      
+
       // Upload each file to the selected route
       for (const file of uploadedFiles) {
         const formData = new FormData();
@@ -260,7 +260,7 @@ export default function SuperAdminAddRoutes() {
         }
 
         const result = await res.json();
-        
+
         if (!result.updated) {
           throw new Error("Failed to upload GeoJSON");
         }
@@ -268,7 +268,7 @@ export default function SuperAdminAddRoutes() {
 
       setSuccess(`Successfully uploaded ${uploadedFiles.length} GeoJSON file(s) to route!`);
       setUploadedFiles([]);
-      
+
       // Refresh routes after successful upload to get updated data
       const fetchRoutes = async () => {
         try {
@@ -293,9 +293,9 @@ export default function SuperAdminAddRoutes() {
           console.error("Error fetching routes:", error);
         }
       };
-      
+
       await fetchRoutes();
-      
+
     } catch (err) {
       console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "Failed to upload GeoJSON files. Please try again.");
@@ -380,7 +380,7 @@ export default function SuperAdminAddRoutes() {
                       </td>
                       <td className="py-4 px-4">
                         {route.hasGeoJSON ? (
-                          <Badge className="bg-green-100 text-green-800 border-green-200">
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">
                             Uploaded
                           </Badge>
                         ) : (
@@ -424,8 +424,8 @@ export default function SuperAdminAddRoutes() {
         </Card>
 
         {/* Upload Route Modal */}
-        <Dialog 
-          open={isUploadModalOpen} 
+        <Dialog
+          open={isUploadModalOpen}
           onOpenChange={(open) => {
             setIsUploadModalOpen(open);
             if (!open) {
