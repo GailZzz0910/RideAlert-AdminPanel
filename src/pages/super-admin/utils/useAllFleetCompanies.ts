@@ -21,8 +21,14 @@ export function useAllFleetCompanies() {
             contactEmail: f.contact_info?.[0]?.email ?? "",
             status: f.is_active ? "active" : "inactive",
             plan: f.subscription_plan,
-            vehiclesCount: f.max_vehicles ?? 0,
+            // actual vehicle count (only set if server provided it). Do NOT fall back to plan max here.
+            vehiclesCount: f.vehicle_count ?? f.vehicleCount ?? undefined,
+            // keep maxVehicles separately so UI can show plan limits if needed
+            maxVehicles: f.max_vehicles,
             createdAt: f.created_at,
+            // Approval info (may be provided by server when approved)
+            approved_in: f.approved_in,
+            approved_by: f.approved_by,
             role: f.role
           }));
           setFleets(mapped);
