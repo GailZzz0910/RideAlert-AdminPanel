@@ -39,6 +39,7 @@ interface Route {
   endLocation: string;
   landmarkStart: string;
   landmarkEnd: string;
+  geojsonFile?: File | null;
 }
 
 export default function Register() {
@@ -79,7 +80,8 @@ export default function Register() {
     startLocation: "",
     endLocation: "",
     landmarkStart: "",
-    landmarkEnd: ""
+    landmarkEnd: "",
+    geojsonFile: null
   });
 
   const plans: SubscriptionPlan[] = [
@@ -526,7 +528,7 @@ export default function Register() {
     setError("");
   };
 
-  const handleNewRouteChange = (field: keyof Route, value: string) => {
+  const handleNewRouteChange = (field: keyof Route, value: string | File | null) => {
     setNewRoute(prev => ({
       ...prev,
       [field]: value
@@ -543,39 +545,96 @@ export default function Register() {
       return;
     }
 
+    setLoading(true);
+    setError("");
+
     try {
-      setLoading(true);
-      
-      // Save routes to backend
-      const routePayload = {
-        company_id: companyId,
-        routes: routes
-      };
+      console.log("🛣️ Starting route registration for company:", companyId);
 
-      console.log("🛣️ Saving routes:", routePayload);
+      // First, get the fleet document to get the ObjectId
+      console.log("🔍 Fetching fleet document for company code:", companyId);
+      const fleetResponse = await fetch(`${apiBaseURL}/fleets/code/${companyId}`);
 
-      const response = await fetch(`${apiBaseURL}/super-admin/companies/${companyId}/routes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(routePayload)
+      if (!fleetResponse.ok) {
+        throw new Error(`Failed to fetch company details: ${fleetResponse.statusText}`);
+      }
+
+      const fleetData = await fleetResponse.json();
+      console.log("📋 Fleet data:", fleetData);
+
+      // Get the ObjectId from the fleet document
+      const companyObjectId = fleetData._id || fleetData.id;
+
+      if (!companyObjectId) {
+        throw new Error("Could not find company ID. Please try again.");
+      }
+
+      console.log("🎯 Using company ObjectId:", companyObjectId);
+
+      // Send each route to the backend using FormData
+      const routePromises = routes.map(async (route, index) => {
+        const formData = new FormData();
+
+        // Add required fields - use the ObjectId as company_id
+        formData.append('company_id', companyObjectId);
+        formData.append('start_location', route.startLocation);
+        formData.append('end_location', route.endLocation);
+        formData.append('landmark_details_start', route.landmarkStart || '');
+        formData.append('landmark_details_end', route.landmarkEnd || '');
+
+        console.log(`📤 Sending route ${index + 1}:`, {
+          company_id: companyObjectId,
+          start_location: route.startLocation,
+          end_location: route.endLocation,
+          landmark_details_start: route.landmarkStart,
+          landmark_details_end: route.landmarkEnd
+        });
+
+        const response = await fetch(`${apiBaseURL}/declared_routes/route-register`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        console.log(`📨 Response for route ${index + 1}:`, response.status);
+
+        if (!response.ok) {
+          let errorDetail = "Unknown error";
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.detail || errorData.message || JSON.stringify(errorData);
+          } catch (parseError) {
+            errorDetail = response.statusText || `HTTP ${response.status}`;
+          }
+
+          throw new Error(`Failed to save route "${route.startLocation} to ${route.endLocation}": ${errorDetail}`);
+        }
+
+        const result = await response.json();
+        console.log(`✅ Route ${index + 1} saved:`, result);
+
+        return result;
       });
 
-      if (response.ok) {
-        console.log("✅ Routes saved successfully");
-        // Mark routes as completed and show completion message
-        setRoutesCompleted(true);
-        setError("Routes saved successfully! Your account is now pending approval by the admin. Please wait for approval before attempting to log in.");
-      } else {
-        console.error("❌ Failed to save routes");
-        setRoutesCompleted(true);
-        setError("Routes setup completed locally. Your account is pending approval by the admin. Please wait for approval before attempting to log in.");
-      }
-    } catch (error) {
-      console.error("❌ Error saving routes:", error);
+      // Wait for all routes to be saved
+      const results = await Promise.all(routePromises);
+
+      console.log('🎉 All routes saved successfully:', results);
+
+      // Mark routes as completed
       setRoutesCompleted(true);
-      setError("Routes setup completed. Your account is pending approval by the admin. Please wait for approval before attempting to log in.");
+      setError(`Success! ${routes.length} route${routes.length !== 1 ? 's' : ''} have been registered. Your account is now pending approval by the admin. Please wait for approval before attempting to log in.`);
+
+    } catch (err: any) {
+      console.error('❌ Error saving routes:', err);
+
+      // Even if some routes fail, we can still show completion
+      // but inform the user about partial failures
+      if (err.message.includes('Failed to save route')) {
+        setRoutesCompleted(true);
+        setError(`Routes setup completed with some issues. ${err.message}. Your account is pending approval. Please wait for approval before attempting to log in.`);
+      } else {
+        setError(err.message || 'Failed to save routes. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -600,643 +659,643 @@ export default function Register() {
           <>
             {/* Main Content Grid */}
             <div className="min-h-screen flex items-center justify-center px-4 py-8">
-          <div className="w-full max-w-7xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              {/* Left Side - Bus Animation */}
-              <div className="flex flex-col items-center justify-center">
-                <div className="w-full max-w-lg">
-                  <Lottie
-                    animationData={BusAnimation}
-                    loop={true}
-                    autoplay={true}
-                    className="w-full h-auto"
-                    style={{ maxWidth: "500px", maxHeight: "400px" }}
-                  />
-                </div>
-                <div className="text-center mt-8 max-w-md">
-                  <p className="text-gray-400 text-lg">
-                    Join thousands of companies that trust RideAlert for their vehicle tracking and management needs.
-                  </p>
-                </div>
-              </div>
-
-              {/* Right Side - Registration Form */}
-              <div className="flex items-center justify-center">
-                <div className="w-full max-w-md">
-
-                  {/* Step Indicator */}
-                  <div className="flex justify-center mb-6">
-                    <div className="flex items-center space-x-2">
-                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 1 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
-                        }`}>
-                        1
-                      </div>
-                      <div className={`w-8 h-0.5 ${currentStep >= 2 ? "bg-blue-600" : "bg-gray-700"}`}></div>
-                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 2 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
-                        }`}>
-                        2
-                      </div>
-                      <div className={`w-8 h-0.5 ${currentStep >= 3 ? "bg-blue-600" : "bg-gray-700"}`}></div>
-                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 3 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
-                        }`}>
-                        3
-                      </div>
-                      <div className={`w-8 h-0.5 ${currentStep >= 4 ? "bg-blue-600" : "bg-gray-700"}`}></div>
-                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 4 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
-                        }`}>
-                        4
-                      </div>
-                      <div className={`w-8 h-0.5 ${currentStep >= 5 ? "bg-blue-600" : "bg-gray-700"}`}></div>
-                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 5 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
-                        }`}>
-                        5
-                      </div>
+              <div className="w-full max-w-7xl mx-auto">
+                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                  {/* Left Side - Bus Animation */}
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-full max-w-lg">
+                      <Lottie
+                        animationData={BusAnimation}
+                        loop={true}
+                        autoplay={true}
+                        className="w-full h-auto"
+                        style={{ maxWidth: "500px", maxHeight: "400px" }}
+                      />
+                    </div>
+                    <div className="text-center mt-8 max-w-md">
+                      <p className="text-gray-400 text-lg">
+                        Join thousands of companies that trust RideAlert for their vehicle tracking and management needs.
+                      </p>
                     </div>
                   </div>
 
-                  {currentStep === 1 ? (
-                    // Step 1: Email Entry
-                    <Card className="bg-black/40 backdrop-blur-xl border-none">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-white text-xl text-center">Enter Your Email</CardTitle>
-                        <CardDescription className="text-gray-400 text-center text-sm">
-                          We'll send you a verification code to get started
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6 pt-0">
-                        <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
-                          {/* Email Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="email" className="text-white text-sm font-medium">
-                              Email Address
-                            </Label>
-                            <div className="relative">
-                              <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                placeholder="john@company.com"
-                                value={formData.email}
-                                onChange={handleChange}
-                                className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
-                                required
-                              />
-                            </div>
+                  {/* Right Side - Registration Form */}
+                  <div className="flex items-center justify-center">
+                    <div className="w-full max-w-md">
+
+                      {/* Step Indicator */}
+                      <div className="flex justify-center mb-6">
+                        <div className="flex items-center space-x-2">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 1 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
+                            }`}>
+                            1
                           </div>
-
-                          {/* Error Message */}
-                          {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                              <p className="text-red-400 text-sm text-center">{error}</p>
-                            </div>
-                          )}
-
-                          {/* Send Verification Button */}
-                          <Button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
-                          >
-                            {loading ? (
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                Sending Code...
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center gap-2">
-                                Send Code
-                              </div>
-                            )}
-                          </Button>
-
-                          {/* Login Link */}
-                          <div className="text-center pt-4">
-                            <span className="text-gray-400 text-sm">Already have an account? </span>
-                            <a
-                              href="/"
-                              className="text-blue-400 hover:text-blue-300 text-sm font-medium hover:underline transition-colors"
-                            >
-                              Sign in
-                            </a>
+                          <div className={`w-8 h-0.5 ${currentStep >= 2 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 2 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
+                            }`}>
+                            2
                           </div>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  ) : currentStep === 2 ? (
-                    // Step 2: Email Verification
-                    <Card className="bg-black/40 backdrop-blur-xl border-none">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-white text-xl text-center">Verify Your Email</CardTitle>
-                        <CardDescription className="text-gray-400 text-center text-sm">
-                          We've sent a verification code to {formData.email}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6 pt-0">
-                        <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
-                          {/* OTP Field */}
-                          <div className="space-y-2">
-                            <Label className="text-white text-sm font-medium text-center block">
-                              Verification Code
-                            </Label>
-                            <div className="flex justify-center gap-3">
-                              {otpDigits.map((digit, index) => (
-                                <Input
-                                  key={index}
-                                  id={`otp-${index}`}
-                                  type="text"
-                                  inputMode="numeric"
-                                  maxLength={1}
-                                  value={digit}
-                                  onChange={(e) => handleOtpChange(index, e.target.value)}
-                                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                                  onPaste={handleOtpPaste}
-                                  className="w-12 h-12 text-center text-xl font-bold text-white bg-white/10 border-white/20 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg transition-all duration-200"
-                                  autoComplete="off"
-                                />
-                              ))}
-                            </div>
-                            <p className="text-gray-400 text-xs text-center mt-2">
-                              Enter the 6-digit code sent to your email
-                            </p>
+                          <div className={`w-8 h-0.5 ${currentStep >= 3 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 3 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
+                            }`}>
+                            3
                           </div>
-
-                          {/* Resend OTP */}
-                          <div className="text-center">
-                            <span className="text-gray-400 text-sm">Didn't receive the code? </span>
-                            <button
-                              type="button"
-                              onClick={sendOTP}
-                              disabled={resendCooldown > 0 || loading}
-                              className="text-blue-400 hover:text-blue-300 text-sm font-medium hover:underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
-                            </button>
+                          <div className={`w-8 h-0.5 ${currentStep >= 4 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 4 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
+                            }`}>
+                            4
                           </div>
+                          <div className={`w-8 h-0.5 ${currentStep >= 5 ? "bg-blue-600" : "bg-gray-700"}`}></div>
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= 5 ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"
+                            }`}>
+                            5
+                          </div>
+                        </div>
+                      </div>
 
-                          {/* Error Message */}
-                          {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                              <p className="text-red-400 text-sm text-center">{error}</p>
-                            </div>
-                          )}
-
-                          <div className="flex gap-3 mt-6">
-                            <Button
-                              type="button"
-                              onClick={handlePrevStep}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-                            >
-                              Back
-                            </Button>
-
-                            <Button
-                              type="submit"
-                              disabled={loading || formData.otp.length !== 6}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
-                            >
-                              {loading ? (
-                                <div className="flex items-center justify-center gap-2">
-                                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                  Verifying...
+                      {currentStep === 1 ? (
+                        // Step 1: Email Entry
+                        <Card className="bg-black/40 backdrop-blur-xl border-none">
+                          <CardHeader className="pb-4">
+                            <CardTitle className="text-white text-xl text-center">Enter Your Email</CardTitle>
+                            <CardDescription className="text-gray-400 text-center text-sm">
+                              We'll send you a verification code to get started
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-6 pt-0">
+                            <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
+                              {/* Email Field */}
+                              <div className="space-y-2">
+                                <Label htmlFor="email" className="text-white text-sm font-medium">
+                                  Email Address
+                                </Label>
+                                <div className="relative">
+                                  <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                  <Input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    placeholder="john@company.com"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                    required
+                                  />
                                 </div>
-                              ) : (
-                                "Continue"
-                              )}
-                            </Button>
-                          </div>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  ) : currentStep === 3 ? (
-                    // Step 3: Company Information & Password
-                    <Card className="bg-black/40 backdrop-blur-xl border-none">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-white text-xl text-center">Company Details & Password</CardTitle>
-                        <CardDescription className="text-gray-400 text-center text-sm">
-                          Enter your company information and create your password
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6 pt-0">
-                        <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
-                          {/* Company Name Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="companyName" className="text-white text-sm font-medium">
-                              Company Name
-                            </Label>
-                            <div className="relative">
-                              <Building className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="companyName"
-                                name="companyName"
-                                type="text"
-                                placeholder="Your Company Ltd."
-                                value={formData.companyName}
-                                onChange={handleChange}
-                                className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          {/* Company Code Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="companyCode" className="text-white text-sm font-medium">
-                              Company Code
-                            </Label>
-                            <div className="relative">
-                              <Code className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="companyCode"
-                                name="companyCode"
-                                type="text"
-                                placeholder="COMP123"
-                                value={formData.companyCode}
-                                onChange={handleChange}
-                                className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          {/* Contact Info Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="contactInfo" className="text-white text-sm font-medium">
-                              Contact Person
-                            </Label>
-                            <div className="relative">
-                              <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="contactInfo"
-                                name="contactInfo"
-                                type="text"
-                                placeholder="John Doe"
-                                value={formData.contactInfo}
-                                onChange={handleChange}
-                                className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          {/* Phone Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="phone" className="text-white text-sm font-medium">
-                              Phone Number
-                            </Label>
-                            <div className="relative">
-                              <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="phone"
-                                name="phone"
-                                type="tel"
-                                inputMode="tel"
-                                pattern="[0-9\s\(\)\-\+]*"
-                                placeholder="0912 345 6789"
-                                value={formData.phone}
-                                onChange={handleChange}
-                                className={`pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 ${phoneError ? 'border-red-500/50 focus:border-red-500' : ''
-                                  }`}
-                                required
-                              />
-                            </div>
-                            {phoneError && (
-                              <div className="flex items-center gap-2 text-red-400 text-xs animate-pulse">
-                                <div className="w-1 h-1 bg-red-400 rounded-full"></div>
-                                {phoneError}
                               </div>
-                            )}
-                          </div>
 
-                          {/* Address Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="address" className="text-white text-sm font-medium">
-                              Address
-                            </Label>
-                            <div className="relative">
-                              <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="address"
-                                name="address"
-                                type="text"
-                                placeholder="123 Main St, City, State, ZIP"
-                                value={formData.address}
-                                onChange={handleChange}
-                                className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
-                                required
-                              />
-                            </div>
-                          </div>
+                              {/* Error Message */}
+                              {error && (
+                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                                  <p className="text-red-400 text-sm text-center">{error}</p>
+                                </div>
+                              )}
 
-                          {/* Password Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="password" className="text-white text-sm font-medium">
-                              Password
-                            </Label>
-                            <div className="relative">
-                              <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="password"
-                                name="password"
-                                type={showPassword ? "text" : "password"}
-                                placeholder="Create a strong password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                className="pl-10 pr-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
-                                required
-                              />
-                              <button
-                                type="button"
-                                className="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition-colors"
-                                onClick={() => setShowPassword(!showPassword)}
-                                tabIndex={-1}
+                              {/* Send Verification Button */}
+                              <Button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
                               >
-                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </div>
+                                {loading ? (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                    Sending Code...
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-2">
+                                    Send Code
+                                  </div>
+                                )}
+                              </Button>
 
-                          {/* Confirm Password Field */}
-                          <div className="space-y-2">
-                            <Label htmlFor="confirmPassword" className="text-white text-sm font-medium">
-                              Confirm Password
-                            </Label>
-                            <div className="relative">
-                              <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                              <Input
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                type={showConfirmPassword ? "text" : "password"}
-                                placeholder="Confirm your password"
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                className="pl-10 pr-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
-                                required
-                              />
-                              <button
-                                type="button"
-                                className="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition-colors"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                tabIndex={-1}
+                              {/* Login Link */}
+                              <div className="text-center pt-4">
+                                <span className="text-gray-400 text-sm">Already have an account? </span>
+                                <a
+                                  href="/"
+                                  className="text-blue-400 hover:text-blue-300 text-sm font-medium hover:underline transition-colors"
+                                >
+                                  Sign in
+                                </a>
+                              </div>
+                            </form>
+                          </CardContent>
+                        </Card>
+                      ) : currentStep === 2 ? (
+                        // Step 2: Email Verification
+                        <Card className="bg-black/40 backdrop-blur-xl border-none">
+                          <CardHeader className="pb-4">
+                            <CardTitle className="text-white text-xl text-center">Verify Your Email</CardTitle>
+                            <CardDescription className="text-gray-400 text-center text-sm">
+                              We've sent a verification code to {formData.email}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-6 pt-0">
+                            <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
+                              {/* OTP Field */}
+                              <div className="space-y-2">
+                                <Label className="text-white text-sm font-medium text-center block">
+                                  Verification Code
+                                </Label>
+                                <div className="flex justify-center gap-3">
+                                  {otpDigits.map((digit, index) => (
+                                    <Input
+                                      key={index}
+                                      id={`otp-${index}`}
+                                      type="text"
+                                      inputMode="numeric"
+                                      maxLength={1}
+                                      value={digit}
+                                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                                      onPaste={handleOtpPaste}
+                                      className="w-12 h-12 text-center text-xl font-bold text-white bg-white/10 border-white/20 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg transition-all duration-200"
+                                      autoComplete="off"
+                                    />
+                                  ))}
+                                </div>
+                                <p className="text-gray-400 text-xs text-center mt-2">
+                                  Enter the 6-digit code sent to your email
+                                </p>
+                              </div>
+
+                              {/* Resend OTP */}
+                              <div className="text-center">
+                                <span className="text-gray-400 text-sm">Didn't receive the code? </span>
+                                <button
+                                  type="button"
+                                  onClick={sendOTP}
+                                  disabled={resendCooldown > 0 || loading}
+                                  className="text-blue-400 hover:text-blue-300 text-sm font-medium hover:underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
+                                </button>
+                              </div>
+
+                              {/* Error Message */}
+                              {error && (
+                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                                  <p className="text-red-400 text-sm text-center">{error}</p>
+                                </div>
+                              )}
+
+                              <div className="flex gap-3 mt-6">
+                                <Button
+                                  type="button"
+                                  onClick={handlePrevStep}
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                                >
+                                  Back
+                                </Button>
+
+                                <Button
+                                  type="submit"
+                                  disabled={loading || formData.otp.length !== 6}
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
+                                >
+                                  {loading ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                      Verifying...
+                                    </div>
+                                  ) : (
+                                    "Continue"
+                                  )}
+                                </Button>
+                              </div>
+                            </form>
+                          </CardContent>
+                        </Card>
+                      ) : currentStep === 3 ? (
+                        // Step 3: Company Information & Password
+                        <Card className="bg-black/40 backdrop-blur-xl border-none">
+                          <CardHeader className="pb-4">
+                            <CardTitle className="text-white text-xl text-center">Company Details & Password</CardTitle>
+                            <CardDescription className="text-gray-400 text-center text-sm">
+                              Enter your company information and create your password
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-6 pt-0">
+                            <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="space-y-4">
+                              {/* Company Name Field */}
+                              <div className="space-y-2">
+                                <Label htmlFor="companyName" className="text-white text-sm font-medium">
+                                  Company Name
+                                </Label>
+                                <div className="relative">
+                                  <Building className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                  <Input
+                                    id="companyName"
+                                    name="companyName"
+                                    type="text"
+                                    placeholder="Your Company Ltd."
+                                    value={formData.companyName}
+                                    onChange={handleChange}
+                                    className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                    required
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Company Code Field */}
+                              <div className="space-y-2">
+                                <Label htmlFor="companyCode" className="text-white text-sm font-medium">
+                                  Company Code
+                                </Label>
+                                <div className="relative">
+                                  <Code className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                  <Input
+                                    id="companyCode"
+                                    name="companyCode"
+                                    type="text"
+                                    placeholder="COMP123"
+                                    value={formData.companyCode}
+                                    onChange={handleChange}
+                                    className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                    required
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Contact Info Field */}
+                              <div className="space-y-2">
+                                <Label htmlFor="contactInfo" className="text-white text-sm font-medium">
+                                  Contact Person
+                                </Label>
+                                <div className="relative">
+                                  <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                  <Input
+                                    id="contactInfo"
+                                    name="contactInfo"
+                                    type="text"
+                                    placeholder="John Doe"
+                                    value={formData.contactInfo}
+                                    onChange={handleChange}
+                                    className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                    required
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Phone Field */}
+                              <div className="space-y-2">
+                                <Label htmlFor="phone" className="text-white text-sm font-medium">
+                                  Phone Number
+                                </Label>
+                                <div className="relative">
+                                  <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                  <Input
+                                    id="phone"
+                                    name="phone"
+                                    type="tel"
+                                    inputMode="tel"
+                                    pattern="[0-9\s\(\)\-\+]*"
+                                    placeholder="0912 345 6789"
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    className={`pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 ${phoneError ? 'border-red-500/50 focus:border-red-500' : ''
+                                      }`}
+                                    required
+                                  />
+                                </div>
+                                {phoneError && (
+                                  <div className="flex items-center gap-2 text-red-400 text-xs animate-pulse">
+                                    <div className="w-1 h-1 bg-red-400 rounded-full"></div>
+                                    {phoneError}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Address Field */}
+                              <div className="space-y-2">
+                                <Label htmlFor="address" className="text-white text-sm font-medium">
+                                  Address
+                                </Label>
+                                <div className="relative">
+                                  <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                  <Input
+                                    id="address"
+                                    name="address"
+                                    type="text"
+                                    placeholder="123 Main St, City, State, ZIP"
+                                    value={formData.address}
+                                    onChange={handleChange}
+                                    className="pl-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                    required
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Password Field */}
+                              <div className="space-y-2">
+                                <Label htmlFor="password" className="text-white text-sm font-medium">
+                                  Password
+                                </Label>
+                                <div className="relative">
+                                  <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                  <Input
+                                    id="password"
+                                    name="password"
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Create a strong password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    className="pl-10 pr-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                    required
+                                  />
+                                  <button
+                                    type="button"
+                                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition-colors"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    tabIndex={-1}
+                                  >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Confirm Password Field */}
+                              <div className="space-y-2">
+                                <Label htmlFor="confirmPassword" className="text-white text-sm font-medium">
+                                  Confirm Password
+                                </Label>
+                                <div className="relative">
+                                  <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                  <Input
+                                    id="confirmPassword"
+                                    name="confirmPassword"
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    placeholder="Confirm your password"
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
+                                    className="pl-10 pr-10 text-white bg-white/10 border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20"
+                                    required
+                                  />
+                                  <button
+                                    type="button"
+                                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition-colors"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    tabIndex={-1}
+                                  >
+                                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Error Message */}
+                              {error && (
+                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                                  <p className="text-red-400 text-sm text-center">{error}</p>
+                                </div>
+                              )}
+
+                              <div className="flex gap-3 mt-6">
+                                <Button
+                                  type="button"
+                                  onClick={handlePrevStep}
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                                >
+                                  Back
+                                </Button>
+
+                                <Button
+                                  type="submit"
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
+                                >
+                                  Continue
+                                </Button>
+                              </div>
+                            </form>
+                          </CardContent>
+                        </Card>
+                      ) : currentStep === 4 ? (
+                        // Step 4: Business Validation
+                        <Card className="bg-black/40 backdrop-blur-xl border-none">
+                          <CardHeader className="pb-4">
+                            <CardTitle className="text-white text-xl text-center">Business Validation</CardTitle>
+                            <CardDescription className="text-gray-400 text-center text-sm">
+                              Upload your business permit or validation documents
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-6 pt-0">
+                            <div className="space-y-4">
+                              {/* File Upload Area */}
+                              <div
+                                className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${dragActive
+                                  ? "border-blue-500 bg-blue-500/10"
+                                  : "border-gray-600 hover:border-gray-500"
+                                  }`}
+                                onDragEnter={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDragOver={handleDrag}
+                                onDrop={handleDrop}
                               >
-                                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </div>
+                                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                <div className="text-white font-medium mb-2">
+                                  Drag and drop your files here
+                                </div>
+                                <div className="text-gray-400 text-sm mb-4">
+                                  or click to browse
+                                </div>
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  onChange={(e) => handleFileUpload(e.target.files)}
+                                  className="hidden"
+                                  id="file-upload"
+                                />
+                                <Button
+                                  type="button"
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                                  onClick={() => document.getElementById('file-upload')?.click()}
+                                >
+                                  <Upload className="w-4 h-4 mr-2" />
+                                  Choose Files
+                                </Button>
+                                <div className="text-xs text-gray-500 mt-2">
+                                  Supported formats: PDF, JPEG, PNG (Max 10MB each)
+                                </div>
+                              </div>
 
-                          {/* Error Message */}
-                          {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                              <p className="text-red-400 text-sm text-center">{error}</p>
-                            </div>
-                          )}
+                              {/* Uploaded Files List */}
+                              {uploadedFiles.length > 0 && (
+                                <div className="space-y-2">
+                                  <Label className="text-white text-sm font-medium">
+                                    Uploaded Documents ({uploadedFiles.length})
+                                  </Label>
+                                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                                    {uploadedFiles.map((file, index) => (
+                                      <div key={index} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                          <File className="w-4 h-4 text-blue-400" />
+                                          <div>
+                                            <div className="text-white text-sm font-medium">{file.name}</div>
+                                            <div className="text-gray-400 text-xs">
+                                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeFile(index)}
+                                          className="text-red-400 hover:text-red-300 transition-colors"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
 
-                          <div className="flex gap-3 mt-6">
-                            <Button
-                              type="button"
-                              onClick={handlePrevStep}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-                            >
-                              Back
-                            </Button>
+                              {/* Requirements Info */}
+                              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                                <div className="text-blue-400 font-medium text-sm mb-2">
+                                  Required Documents:
+                                </div>
+                                <ul className="text-blue-300 text-xs space-y-1">
+                                  <li>• Business permit or registration certificate</li>
+                                  <li>• Tax identification document</li>
+                                  <li>• Operating license (if applicable)</li>
+                                  <li>• Other relevant business validation documents</li>
+                                </ul>
+                              </div>
 
-                            <Button
-                              type="submit"
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
-                            >
-                              Continue
-                            </Button>
-                          </div>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  ) : currentStep === 4 ? (
-                    // Step 4: Business Validation
-                    <Card className="bg-black/40 backdrop-blur-xl border-none">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-white text-xl text-center">Business Validation</CardTitle>
-                        <CardDescription className="text-gray-400 text-center text-sm">
-                          Upload your business permit or validation documents
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6 pt-0">
-                        <div className="space-y-4">
-                          {/* File Upload Area */}
-                          <div
-                            className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${dragActive
-                              ? "border-blue-500 bg-blue-500/10"
-                              : "border-gray-600 hover:border-gray-500"
-                              }`}
-                            onDragEnter={handleDrag}
-                            onDragLeave={handleDrag}
-                            onDragOver={handleDrag}
-                            onDrop={handleDrop}
-                          >
-                            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                            <div className="text-white font-medium mb-2">
-                              Drag and drop your files here
-                            </div>
-                            <div className="text-gray-400 text-sm mb-4">
-                              or click to browse
-                            </div>
-                            <input
-                              type="file"
-                              multiple
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) => handleFileUpload(e.target.files)}
-                              className="hidden"
-                              id="file-upload"
-                            />
-                            <Button
-                              type="button"
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-                              onClick={() => document.getElementById('file-upload')?.click()}
-                            >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Choose Files
-                            </Button>
-                            <div className="text-xs text-gray-500 mt-2">
-                              Supported formats: PDF, JPEG, PNG (Max 10MB each)
-                            </div>
-                          </div>
+                              {/* Error Message */}
+                              {error && (
+                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                                  <p className="text-red-400 text-sm text-center">{error}</p>
+                                </div>
+                              )}
 
-                          {/* Uploaded Files List */}
-                          {uploadedFiles.length > 0 && (
-                            <div className="space-y-2">
-                              <Label className="text-white text-sm font-medium">
-                                Uploaded Documents ({uploadedFiles.length})
-                              </Label>
-                              <div className="space-y-2 max-h-32 overflow-y-auto">
-                                {uploadedFiles.map((file, index) => (
-                                  <div key={index} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
+                              <div className="flex gap-3 mt-6">
+                                <Button
+                                  type="button"
+                                  onClick={handlePrevStep}
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                                >
+                                  Back
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  onClick={handleNextStep}
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                                >
+                                  <div className="flex items-center justify-center gap-2">
+                                    Continue
+                                    <ArrowRight className="w-4 h-4" />
+                                  </div>
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        // Step 5: Subscription Selection
+                        <Card className="bg-black/40 backdrop-blur-xl border-none">
+                          <CardHeader className="pb-4">
+                            <CardTitle className="text-white text-xl text-center">Choose Your Plan</CardTitle>
+                            <CardDescription className="text-gray-400 text-center text-sm">
+                              Select the perfect plan for your needs
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-6 pt-0">
+                            <div className="space-y-4">
+                              {plans.map((plan) => (
+                                <div
+                                  key={plan.id}
+                                  className={`relative cursor-pointer transition-all duration-300 p-4 rounded-lg border ${selectedPlan === plan.id
+                                    ? "bg-blue-600/20 border-blue-500"
+                                    : "bg-white/5 border-gray-800/50 hover:border-gray-700"
+                                    }`}
+                                  onClick={() => setSelectedPlan(plan.id)}
+                                >
+                                  {plan.popular && (
+                                    <div className="absolute -top-2 left-4">
+                                      <Badge className="bg-blue-600 text-white px-2 py-1 text-xs flex items-center gap-1">
+                                        <Star className="w-3 h-3" />
+                                        Most Popular
+                                      </Badge>
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                      <File className="w-4 h-4 text-blue-400" />
-                                      <div>
-                                        <div className="text-white text-sm font-medium">{file.name}</div>
-                                        <div className="text-gray-400 text-xs">
-                                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlan === plan.id ? "bg-blue-600" : "bg-gray-800"
+                                        }`}>
+                                        <div className="text-white">
+                                          {plan.icon}
                                         </div>
                                       </div>
+
+                                      <div>
+                                        <h3 className="text-white font-semibold">{plan.name}</h3>
+                                        <p className="text-gray-400 text-sm">{plan.description}</p>
+                                        <p className="text-blue-400 text-sm">
+                                          {plan.maxVehicles === -1 ? "Unlimited vehicles" : `Up to ${plan.maxVehicles} vehicles`}
+                                        </p>
+                                      </div>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeFile(index)}
-                                      className="text-red-400 hover:text-red-300 transition-colors"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
 
-                          {/* Requirements Info */}
-                          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                            <div className="text-blue-400 font-medium text-sm mb-2">
-                              Required Documents:
-                            </div>
-                            <ul className="text-blue-300 text-xs space-y-1">
-                              <li>• Business permit or registration certificate</li>
-                              <li>• Tax identification document</li>
-                              <li>• Operating license (if applicable)</li>
-                              <li>• Other relevant business validation documents</li>
-                            </ul>
-                          </div>
-
-                          {/* Error Message */}
-                          {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                              <p className="text-red-400 text-sm text-center">{error}</p>
-                            </div>
-                          )}
-
-                          <div className="flex gap-3 mt-6">
-                            <Button
-                              type="button"
-                              onClick={handlePrevStep}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-                            >
-                              Back
-                            </Button>
-
-                            <Button
-                              type="button"
-                              onClick={handleNextStep}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-                            >
-                              <div className="flex items-center justify-center gap-2">
-                                Continue
-                                <ArrowRight className="w-4 h-4" />
-                              </div>
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    // Step 5: Subscription Selection
-                    <Card className="bg-black/40 backdrop-blur-xl border-none">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-white text-xl text-center">Choose Your Plan</CardTitle>
-                        <CardDescription className="text-gray-400 text-center text-sm">
-                          Select the perfect plan for your needs
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6 pt-0">
-                        <div className="space-y-4">
-                          {plans.map((plan) => (
-                            <div
-                              key={plan.id}
-                              className={`relative cursor-pointer transition-all duration-300 p-4 rounded-lg border ${selectedPlan === plan.id
-                                ? "bg-blue-600/20 border-blue-500"
-                                : "bg-white/5 border-gray-800/50 hover:border-gray-700"
-                                }`}
-                              onClick={() => setSelectedPlan(plan.id)}
-                            >
-                              {plan.popular && (
-                                <div className="absolute -top-2 left-4">
-                                  <Badge className="bg-blue-600 text-white px-2 py-1 text-xs flex items-center gap-1">
-                                    <Star className="w-3 h-3" />
-                                    Most Popular
-                                  </Badge>
-                                </div>
-                              )}
-
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlan === plan.id ? "bg-blue-600" : "bg-gray-800"
-                                    }`}>
-                                    <div className="text-white">
-                                      {plan.icon}
+                                    <div className="text-right">
+                                      <span className="text-2xl font-bold text-white">
+                                        ${plan.price}
+                                      </span>
+                                      <span className="text-gray-400 text-sm">/month</span>
                                     </div>
                                   </div>
-
-                                  <div>
-                                    <h3 className="text-white font-semibold">{plan.name}</h3>
-                                    <p className="text-gray-400 text-sm">{plan.description}</p>
-                                    <p className="text-blue-400 text-sm">
-                                      {plan.maxVehicles === -1 ? "Unlimited vehicles" : `Up to ${plan.maxVehicles} vehicles`}
-                                    </p>
-                                  </div>
                                 </div>
-
-                                <div className="text-right">
-                                  <span className="text-2xl font-bold text-white">
-                                    ${plan.price}
-                                  </span>
-                                  <span className="text-gray-400 text-sm">/month</span>
-                                </div>
-                              </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
 
-                        <div className="flex gap-3 mt-6">
-                          <Button
-                            type="button"
-                            onClick={handlePrevStep}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-                          >
+                            <div className="flex gap-3 mt-6">
+                              <Button
+                                type="button"
+                                onClick={handlePrevStep}
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                              >
 
-                            Back
-                          </Button>
+                                Back
+                              </Button>
 
-                          <Button
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
-                          >
-                            {loading ? (
-                              <div className="flex items-center gap-2">
-                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                Creating...
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
+                              <Button
+                                onClick={handleSubmit}
+                                disabled={loading}
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                              >
+                                {loading ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                    Creating...
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
 
-                                Create Account
-                              </div>
-                            )}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                                    Create Account
+                                  </div>
+                                )}
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
-                  {/* Terms & Privacy */}
-                  <p className="text-center text-gray-500 text-xs mt-6 px-4">
-                    By creating an account, you agree to our{" "}
-                    <a href="#" className="text-blue-400 hover:underline">Terms of Service</a>{" "}
-                    and{" "}
-                    <a href="#" className="text-blue-400 hover:underline">Privacy Policy</a>
-                  </p>
+                      {/* Terms & Privacy */}
+                      <p className="text-center text-gray-500 text-xs mt-6 px-4">
+                        By creating an account, you agree to our{" "}
+                        <a href="#" className="text-blue-400 hover:underline">Terms of Service</a>{" "}
+                        and{" "}
+                        <a href="#" className="text-blue-400 hover:underline">Privacy Policy</a>
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        </>
+          </>
         )}
 
         {/* Route Setup Modal */}
@@ -1330,14 +1389,12 @@ export default function Register() {
 
                   {/* Error/Success Display */}
                   {error && (
-                    <div className={`border rounded-lg p-4 ${
-                      routesCompleted 
-                        ? "bg-green-500/10 border-green-500/20" 
-                        : "bg-red-500/10 border-red-500/20"
-                    }`}>
-                      <p className={`text-sm font-medium ${
-                        routesCompleted ? "text-green-400" : "text-red-400"
+                    <div className={`border rounded-lg p-4 ${routesCompleted
+                      ? "bg-green-500/10 border-green-500/20"
+                      : "bg-red-500/10 border-red-500/20"
                       }`}>
+                      <p className={`text-sm font-medium ${routesCompleted ? "text-green-400" : "text-red-400"
+                        }`}>
                         {routesCompleted && "✅ "}
                         {error}
                       </p>
