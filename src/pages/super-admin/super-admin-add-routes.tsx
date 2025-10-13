@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { Upload, File, X, Route, Search, Filter, MapPin, Navigation } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Upload, File, X, Route, Search, MapPin, Badge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -27,7 +26,7 @@ interface Route {
   endLocation: string;
   landmarkStart: string;
   landmarkEnd: string;
-
+  hasGeoJSON?: boolean;
 }
 
 export default function SuperAdminAddRoutes() {
@@ -38,13 +37,94 @@ export default function SuperAdminAddRoutes() {
   const [success, setSuccess] = useState("");
   const [searchValue, setSearchValue] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
 
   const [routes, setRoutes] = useState<Route[]>([]);
+  const ws = useRef<WebSocket | null>(null);
+
+  // WebSocket setup for real-time updates
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const connectWebSocket = () => {
+      const protocol = apiBaseURL.startsWith('https') ? 'wss' : 'ws';
+      const wsUrl = `${protocol}://${apiBaseURL.split('://')[1].split('/')[0]}/declared_routes/ws/routes?token=${token}`;
+      ws.current = new WebSocket(wsUrl);
+
+      ws.current.onopen = () => {
+        console.log('WebSocket connected for real-time routes');
+      };
+
+      ws.current.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+
+        if (message.type === 'new_route') {
+          const newRoute: Route = {
+            id: message.route._id,
+            company: message.route.company_name,
+            startLocation: message.route.start_location,
+            endLocation: message.route.end_location,
+            landmarkStart: message.route.landmark_details_start || '',
+            landmarkEnd: message.route.landmark_details_end || '',
+          };
+
+          setRoutes(prev => {
+            const exists = prev.some(r => r.id === newRoute.id);
+            if (exists) {
+              console.log('Route already exists, skipping duplicate:', newRoute.id);
+              return prev;
+            }
+            return [...prev, newRoute];
+          });
+
+        } else if (message.type === 'updated_route') {
+          const updatedRoute: Route = {
+            id: message.route._id,
+            company: message.route.company_name,
+            startLocation: message.route.start_location,
+            endLocation: message.route.end_location,
+            landmarkStart: message.route.landmark_details_start || '',
+            landmarkEnd: message.route.landmark_details_end || '',
+          };
+
+          setRoutes(prev => {
+            const exists = prev.some(r => r.id === updatedRoute.id);
+            if (exists) {
+              return prev.map(r => r.id === updatedRoute.id ? updatedRoute : r);
+            } else {
+              return [...prev, updatedRoute];
+            }
+          });
+
+        } else if (message.type === 'deleted_route') {
+          setRoutes(prev => prev.filter(r => r.id !== message.route_id));
+        }
+      };
+
+      ws.current.onclose = () => {
+        console.log('WebSocket disconnected, reconnecting...');
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const fetchRoutes = async () => {
       try {
-        const token = localStorage.getItem("token"); // or however you store auth
+        const token = localStorage.getItem("token");
         const res = await fetch(`${apiBaseURL}/declared_routes/all/routes`, {
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -61,6 +141,7 @@ export default function SuperAdminAddRoutes() {
           endLocation: route.end_location,
           landmarkStart: route.landmark_details_start,
           landmarkEnd: route.landmark_details_end,
+          hasGeoJSON: !!route.route_geojson,
         }));
         setRoutes(formattedRoutes);
       } catch (error) {
@@ -139,7 +220,7 @@ export default function SuperAdminAddRoutes() {
     setSuccess("");
   };
 
-  // Submit form
+  // Submit form - Upload GeoJSON to specific route
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -148,23 +229,76 @@ export default function SuperAdminAddRoutes() {
       return;
     }
 
+    if (!selectedRoute) {
+      setError("No route selected.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      const formData = new FormData();
-      uploadedFiles.forEach((file, index) => {
-        formData.append(`routes_${index}`, file);
-      });
+      const token = localStorage.getItem("token");
+      
+      // Upload each file to the selected route
+      for (const file of uploadedFiles) {
+        const formData = new FormData();
+        formData.append("route_geojson", file);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+        const res = await fetch(`${apiBaseURL}/declared_routes/${selectedRoute.id}/route-geojson-upload`, {
+          method: "PATCH",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
 
-      setSuccess(`Successfully uploaded ${uploadedFiles.length} route file(s)!`);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.detail || `Failed to upload GeoJSON: ${res.statusText}`);
+        }
+
+        const result = await res.json();
+        
+        if (!result.updated) {
+          throw new Error("Failed to upload GeoJSON");
+        }
+      }
+
+      setSuccess(`Successfully uploaded ${uploadedFiles.length} GeoJSON file(s) to route!`);
       setUploadedFiles([]);
+      
+      // Refresh routes after successful upload to get updated data
+      const fetchRoutes = async () => {
+        try {
+          const res = await fetch(`${apiBaseURL}/declared_routes/all/routes`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          if (!res.ok) throw new Error("Failed to fetch routes");
+          const data = await res.json();
+          const formattedRoutes = data.map((route: any) => ({
+            id: route._id,
+            company: route.company_name || "Unknown Company",
+            startLocation: route.start_location,
+            endLocation: route.end_location,
+            landmarkStart: route.landmark_details_start,
+            landmarkEnd: route.landmark_details_end,
+            hasGeoJSON: !!route.route_geojson,
+          }));
+          setRoutes(formattedRoutes);
+        } catch (error) {
+          console.error("Error fetching routes:", error);
+        }
+      };
+      
+      await fetchRoutes();
+      
     } catch (err) {
-      setError("Failed to upload routes. Please try again.");
+      console.error("Upload error:", err);
+      setError(err instanceof Error ? err.message : "Failed to upload GeoJSON files. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -181,7 +315,6 @@ export default function SuperAdminAddRoutes() {
             <p className="text-muted-foreground">Manage and upload route information for the transit system. Click on any row to upload GeoJSON files.</p>
           </div>
         </div>
-
 
         {/* Controls */}
         <div className="flex items-center gap-4">
@@ -216,6 +349,7 @@ export default function SuperAdminAddRoutes() {
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Location</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (Start)</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (End)</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">GeoJSON</th>
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -224,7 +358,10 @@ export default function SuperAdminAddRoutes() {
                     <tr
                       key={route.id || `${route.company}-${route.startLocation}-${route.endLocation}`}
                       className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => setIsUploadModalOpen(true)}
+                      onClick={() => {
+                        setSelectedRoute(route);
+                        setIsUploadModalOpen(true);
+                      }}
                     >
                       <td className="py-4 px-4">
                         <span className="text-foreground font-medium">{route.company}</span>
@@ -242,16 +379,28 @@ export default function SuperAdminAddRoutes() {
                         <span className="text-sm text-muted-foreground">{route.landmarkEnd}</span>
                       </td>
                       <td className="py-4 px-4">
+                        {route.hasGeoJSON ? (
+                          <Badge className="bg-green-100 text-green-800 border-green-200">
+                            Uploaded
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-600 border-gray-300">
+                            Not Uploaded
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
                         <Button
                           size="sm"
                           className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
                           onClick={(e) => {
                             e.stopPropagation();
+                            setSelectedRoute(route);
                             setIsUploadModalOpen(true);
                           }}
                         >
                           <Upload className="w-4 h-4 mr-2" />
-                          Upload Geo Location
+                          Upload GeoJSON
                         </Button>
                       </td>
                     </tr>
@@ -275,19 +424,66 @@ export default function SuperAdminAddRoutes() {
         </Card>
 
         {/* Upload Route Modal */}
-        <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
+        <Dialog 
+          open={isUploadModalOpen} 
+          onOpenChange={(open) => {
+            setIsUploadModalOpen(open);
+            if (!open) {
+              setSelectedRoute(null);
+              setUploadedFiles([]);
+              setError("");
+              setSuccess("");
+            }
+          }}
+        >
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Upload className="w-5 h-5" />
-                Upload Route Files
+                Upload GeoJSON for Route
+                {selectedRoute && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    ({selectedRoute.startLocation} → {selectedRoute.endLocation})
+                  </span>
+                )}
               </DialogTitle>
               <DialogDescription>
-                Upload GeoJSON files containing route information. Multiple files can be uploaded at once.
+                Upload GeoJSON files containing route information for the selected route.
               </DialogDescription>
             </DialogHeader>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Selected Route Info */}
+              {selectedRoute && (
+                <div className="bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Uploading to Route:</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-blue-700 dark:text-blue-300 font-medium">Company:</span>
+                      <p className="text-blue-900 dark:text-blue-100">{selectedRoute.company}</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700 dark:text-blue-300 font-medium">Route:</span>
+                      <p className="text-blue-900 dark:text-blue-100">
+                        {selectedRoute.startLocation} → {selectedRoute.endLocation}
+                      </p>
+                    </div>
+                    {selectedRoute.landmarkStart && (
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300 font-medium">Start Landmark:</span>
+                        <p className="text-blue-900 dark:text-blue-100">{selectedRoute.landmarkStart}</p>
+                      </div>
+                    )}
+                    {selectedRoute.landmarkEnd && (
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300 font-medium">End Landmark:</span>
+                        <p className="text-blue-900 dark:text-blue-100">{selectedRoute.landmarkEnd}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* File Upload Area */}
               <div className="space-y-2">
                 <Label htmlFor="route-files" className="text-foreground">Route Files (GeoJSON)</Label>
@@ -399,18 +595,18 @@ export default function SuperAdminAddRoutes() {
               <div className="flex gap-3 pt-4 border-t">
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || uploadedFiles.length === 0}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {loading ? (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin"></div>
-                      Uploading Routes...
+                      Uploading GeoJSON...
                     </div>
                   ) : (
                     <div className="cursor-pointer flex items-center justify-center gap-2">
                       <Upload className="w-4 h-4" />
-                      Upload Routes
+                      Upload GeoJSON
                     </div>
                   )}
                 </Button>
