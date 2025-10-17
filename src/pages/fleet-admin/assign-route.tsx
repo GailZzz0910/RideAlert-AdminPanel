@@ -58,13 +58,46 @@ export default function AssignRoute() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Fetch available routes from backend
+  // Fetch available routes from backend - complete version
   useEffect(() => {
     const fetchRoutes = async () => {
-      if (!token) return;
-      
+      if (!token || !vehicle_id) return;
+
       setFetchLoading(true);
       try {
-        const response = await fetch(`${apiBaseURL}/declared_routes/all/routes`, {
+        let companyId;
+
+        // First try to get fleet_id from the passed vehicleData
+        if (vehicleData?.fleet_id) {
+          companyId = vehicleData.fleet_id;
+          console.log("Using fleet_id from vehicleData:", companyId);
+        } else {
+          // If not available, fetch complete vehicle details from API
+          console.log("Fetching vehicle details from API...");
+          const vehicleResponse = await fetch(`${apiBaseURL}/vehicles/${vehicle_id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (!vehicleResponse.ok) {
+            throw new Error("Failed to fetch vehicle details");
+          }
+
+          const vehicleDetails = await vehicleResponse.json();
+          console.log("Vehicle details from API:", vehicleDetails);
+
+          companyId = vehicleDetails.fleet_id;
+
+          if (!companyId) {
+            throw new Error("fleet_id not found in vehicle details");
+          }
+
+          console.log("Using fleet_id from API:", companyId);
+        }
+
+        // Use the endpoint that filters by company ID
+        const response = await fetch(`${apiBaseURL}/declared_routes/${companyId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -75,7 +108,7 @@ export default function AssignRoute() {
         }
 
         const data = await response.json();
-        
+
         // Transform backend data to frontend format
         const formattedRoutes: Route[] = data.map((route: any) => ({
           id: route._id,
@@ -96,7 +129,7 @@ export default function AssignRoute() {
     };
 
     fetchRoutes();
-  }, [token]);
+  }, [token, vehicle_id, vehicleData]);
 
   // Helper function to get status color
   const getStatusColor = (status: string) => {
@@ -185,7 +218,7 @@ export default function AssignRoute() {
       }
 
       const result = await response.json();
-      
+
       setSuccess(result.message || `Successfully assigned route to vehicle ${vehicleData?.plate}`);
       setShowConfirmDialog(true);
     } catch (error) {
@@ -304,11 +337,10 @@ export default function AssignRoute() {
                         <div
                           key={route.id}
                           onClick={() => handleRouteSelect(route)}
-                          className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${
-                            isSelected
-                              ? "border-blue-500 bg-blue-500/10"
-                              : "border-gray-600 bg-gray-700/50 hover:bg-gray-700"
-                          }`}
+                          className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${isSelected
+                            ? "border-blue-500 bg-blue-500/10"
+                            : "border-gray-600 bg-gray-700/50 hover:bg-gray-700"
+                            }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
