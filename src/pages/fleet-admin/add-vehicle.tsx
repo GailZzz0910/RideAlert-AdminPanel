@@ -160,7 +160,7 @@ export default function AddVehicle() {
                 </Select>
               </div>
 
-              <div className="flex flex-col gap-2">
+              {/* <div className="flex flex-col gap-2">
                 <Label htmlFor="capacity">Capacity:</Label>
                 <Input
                   id="capacity"
@@ -191,7 +191,7 @@ export default function AddVehicle() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
 
               <div className="flex flex-col gap-2">
                 <Label>Current Location:</Label>
