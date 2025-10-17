@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,20 +10,44 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 import api from "@/utils/api";
 import { useUser } from "@/context/userContext";
 
-const routes = ["Igpit - Bugo", "Bugo - Igpit", "Other Route"];
 const statuses = ["Available", "Unavailable", "In Service", "Maintenance"];
 
 export default function AddVehicle() {
-  const [selectedRoute, setSelectedRoute] = useState(routes[0]);
+  const [routes, setRoutes] = useState<string[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState("");
   const [selectedStatus, setSelectedStatus] = useState(statuses[0]);
   const [plate, setPlate] = useState("");
   const [driver, setDriver] = useState("");
-  const [capacity, setCapacity] = useState("30"); // string for controlled input
+  const [capacity, setCapacity] = useState("30");
   const { user } = useUser();
+
+  // 🔹 Fetch routes dynamically from backend
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      if (!user?.id) return;
+
+      try {
+        const res = await api.get(`/declared_routes/routes/${user.id}`);
+        // Example response: [{ start_location: "Villa", end_location: "Cogon" }]
+        const formattedRoutes = res.data.map(
+          (r: any) => `${r.start_location} - ${r.end_location}`
+        );
+
+        setRoutes(formattedRoutes);
+        if (formattedRoutes.length > 0) {
+          setSelectedRoute(formattedRoutes[0]);
+        }
+      } catch (err: any) {
+        console.error("Failed to load routes:", err.response?.data || err.message);
+        setRoutes([]);
+      }
+    };
+
+    fetchRoutes();
+  }, [user?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +76,7 @@ export default function AddVehicle() {
       setPlate("");
       setDriver("");
       setCapacity("30");
-      setSelectedRoute(routes[0]);
+      if (routes.length > 0) setSelectedRoute(routes[0]);
       setSelectedStatus(statuses[0]);
     } catch (err: any) {
       console.error("Failed to add vehicle:", err.response?.data || err.message);
@@ -76,6 +101,7 @@ export default function AddVehicle() {
               Save Vehicle
             </Button>
           </div>
+
           <form
             id="add-vehicle-form"
             onSubmit={handleSubmit}
@@ -94,6 +120,7 @@ export default function AddVehicle() {
                   className="bg-card"
                 />
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="driver">Driver:</Label>
                 <Input
@@ -106,11 +133,22 @@ export default function AddVehicle() {
                   className="bg-card"
                 />
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="route">Route Assigned:</Label>
-                <Select value={selectedRoute} onValueChange={setSelectedRoute}>
+                <Select
+                  value={selectedRoute}
+                  onValueChange={setSelectedRoute}
+                  disabled={routes.length === 0}
+                >
                   <SelectTrigger className="w-full bg-card">
-                    <SelectValue placeholder="Select route" />
+                    <SelectValue
+                      placeholder={
+                        routes.length === 0
+                          ? "No declared routes available"
+                          : "Select route"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent className="w-full">
                     {routes.map((route) => (
@@ -121,6 +159,7 @@ export default function AddVehicle() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="capacity">Capacity:</Label>
                 <Input
@@ -134,9 +173,13 @@ export default function AddVehicle() {
                   className="bg-card"
                 />
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="status">Status:</Label>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <Select
+                  value={selectedStatus}
+                  onValueChange={setSelectedStatus}
+                >
                   <SelectTrigger className="w-full bg-card">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -149,9 +192,12 @@ export default function AddVehicle() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label>Current Location:</Label>
-                <span className="text-base font-medium">Auto-detect via GPS</span>
+                <span className="text-base font-medium">
+                  Auto-detect via GPS
+                </span>
                 <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                   <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="12" fill="#888" />
