@@ -50,7 +50,7 @@ export default function NotifDropdown() {
       const userData = {
         role: user.role,
         user_id: user.id,
-        username: user.username || user.company_name
+        username: user.company_name
       };
       console.log('👤 Sending user identification:', userData);
       
