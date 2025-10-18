@@ -1,14 +1,15 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import { MapPin } from "lucide-react";
+import { MapPin, Loader2, AlertCircle } from "lucide-react";
+import { useVehicleETA } from "@/hooks/useVehicleETA";
 
 export interface DashboardVehicleCardProps {
-  id: string; // Vehicle ID - REQUIRED
+  id: string;
   title: string;
-  subtitle: string;
+  subtitle: any; // Vehicle object
   status: string;
   statusColor: string;
   orderCompleted: number;
@@ -17,6 +18,7 @@ export interface DashboardVehicleCardProps {
   maxLoad: string;
   driver: string;
   className?: string;
+  userLocation: { latitude: number; longitude: number } | null;
 }
 
 export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
@@ -27,17 +29,57 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
   statusColor,
   orderCompleted,
   maxLoad,
-  driver
+  driver,
+  userLocation,
+  className,
 }) => {
   const navigate = useNavigate();
+  const { etaData, loading, error } = useVehicleETA({
+    vehicleId: id,
+    userLocation,
+  });
 
   const handleMapClick = () => {
-    // Navigate with vehicle ID as query parameter
     navigate(`/dashboard/maps?vehicleId=${id}`);
   };
 
+  const etaDisplay = useMemo(() => {
+    if (loading) {
+      return (
+        <div className="flex items-center gap-1">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span className="text-xs">Calculating...</span>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex items-center gap-1 text-red-500">
+          <AlertCircle className="w-3 h-3" />
+          <span className="text-xs">Error</span>
+        </div>
+      );
+    }
+
+    if (etaData) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-semibold text-foreground">
+            {etaData.eta_formatted}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {etaData.distance_km.toFixed(1)} km away
+          </span>
+        </div>
+      );
+    }
+
+    return <span className="text-sm text-muted-foreground">N/A</span>;
+  }, [etaData, loading, error]);
+
   return (
-    <Card className="w-full bg-card border-border">
+    <Card className={cn("w-full bg-card border-border", className)}>
       <CardContent className="p-0">
         <div className="p-4 space-y-3">
           <div className="flex items-start justify-between gap-3">
@@ -63,7 +105,7 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">ETA</span>
               <span className="text-sm font-semibold text-foreground px-2 py-1 rounded">
-                {subtitle}
+                {etaDisplay}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -79,6 +121,28 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
               </span>
             </div>
           </div>
+
+          {etaData && (
+            <div className="pt-2 border-t border-border/50">
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex justify-between">
+                  <span>Speed:</span>
+                  <span className="text-foreground">
+                    {etaData.current_speed_kmh.toFixed(1)} km/h
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Status:</span>
+                  <span className={cn(
+                    "text-foreground",
+                    etaData.is_stopped ? "text-orange-500" : "text-green-500"
+                  )}>
+                    {etaData.is_stopped ? "Stopped" : "Moving"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="pt-2">
             <Button onClick={handleMapClick} className="w-full" variant="default">
