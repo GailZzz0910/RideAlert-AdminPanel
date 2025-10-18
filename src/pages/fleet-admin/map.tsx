@@ -269,9 +269,9 @@ const Map: React.FC = () => {
         const res = await fetch(`${apiBase}/vehicles/${vehicleId}`);
         if (!res.ok) return;
         const data = await res.json();
-
+        
         setVehicleData(data);
-
+        
         const loc = data?.location;
         if (loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
           const initial: [number, number] = [loc.latitude, loc.longitude];
@@ -303,8 +303,10 @@ const Map: React.FC = () => {
   }, []);
 
   // Helper functions
-  const getVehicleStatusFromData = (status: string): string => {
-    switch (status?.toLowerCase()) {
+  const getVehicleStatusFromData = (status: string | null | undefined): string => {
+    if (!status) return 'Unknown';
+    const normalizedStatus = String(status).toLowerCase().trim();
+    switch (normalizedStatus) {
       case 'available':
         return 'Available';
       case 'full':
@@ -312,12 +314,14 @@ const Map: React.FC = () => {
       case 'unavailable':
         return 'Unavailable';
       default:
-        return status || 'Unknown';
+        return 'Unknown';
     }
   };
 
-  const getStatusColorFromData = (status: string): string => {
-    switch (status?.toLowerCase()) {
+  const getStatusColorFromData = (status: string | null | undefined): string => {
+    if (!status) return 'bg-gray-500';
+    const normalizedStatus = String(status).toLowerCase().trim();
+    switch (normalizedStatus) {
       case 'available':
         return 'bg-green-500';
       case 'full':
@@ -340,17 +344,17 @@ const Map: React.FC = () => {
   return (
     <div style={{ height: 'calc(100vh - 64px)', width: '100%', position: 'relative', zIndex: 0 }}>
       <MapContainer
-        {...({
-          center: center as any,
-          zoom: 13,
-          style: { height: '100%', width: '100%', zIndex: 0 },
+        {...({ 
+          center: center as any, 
+          zoom: 13, 
+          style: { height: '100%', width: '100%', zIndex: 0 }, 
           whenCreated: (map: any) => {
             try {
               map?.zoomControl?.setPosition && map.zoomControl.setPosition('topright');
             } catch (e) {
               // ignore
             }
-          }
+          } 
         } as any)}
       >
         {/* OpenStreetMap tiles */}
@@ -361,13 +365,13 @@ const Map: React.FC = () => {
 
         {/* User location marker */}
         {userLocation && (
-          <Marker
-            {...({
-              position: userLocation,
-              icon: userIcon,
-              eventHandlers: {
-                click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
-              }
+          <Marker 
+            {...({ 
+              position: userLocation, 
+              icon: userIcon, 
+              eventHandlers: { 
+                click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' }) 
+              } 
             } as any)}
           >
             <Popup {...({ onClose: handlePopupClose } as any)}>
@@ -380,23 +384,28 @@ const Map: React.FC = () => {
 
         {/* Vehicle location marker */}
         {vehicleLocation && (
-          <Marker
-            {...({
-              position: vehicleLocation,
-              icon: vehicleIcon,
-              eventHandlers: {
-                click: () => handleMarkerClick({
-                  position: vehicleLocation,
-                  title: vehicleData?.route || 'Vehicle'
-                })
-              }
+          <Marker 
+            {...({ 
+              position: vehicleLocation, 
+              icon: vehicleIcon, 
+              eventHandlers: { 
+                click: () => handleMarkerClick({ 
+                  position: vehicleLocation, 
+                  title: vehicleData?.route || 'Vehicle' 
+                }) 
+              } 
             } as any)}
           >
             <Popup {...({ onClose: handlePopupClose } as any)}>
               <div className="p-2">
                 <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
                 <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>
-                <p className="text-sm">Status: {getVehicleStatusFromData(vehicleData.status)}</p>
+                <p className="text-sm">
+                  Status: 
+                  <span className={`ml-1 px-2 py-0.5 rounded text-white text-xs font-medium ${getStatusColorFromData(vehicleData?.status || '')}`}>
+                    {getVehicleStatusFromData(vehicleData?.status || '')}
+                  </span>
+                </p>
                 <p className="text-sm">Available Seats: {vehicleData?.available_seats || 0}</p>
                 <p className="text-sm">Plate: {vehicleData?.plate || 'N/A'}</p>
               </div>
