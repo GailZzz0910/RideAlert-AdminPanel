@@ -53,7 +53,10 @@ export default function NotifDropdown() {
         username: user.username || user.company_name
       };
       console.log('👤 Sending user identification:', userData);
-      ws.current?.send(JSON.stringify(userData));
+      
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify(userData));
+      }
     };
 
     ws.current.onmessage = (event) => {
@@ -77,6 +80,18 @@ export default function NotifDropdown() {
             handleNewRouteNotification(data.notification);
           } else {
             console.log('🔕 User is not superadmin, filtering out route notification');
+          }
+        }
+        // Handle GeoJSON upload notifications
+        else if (data.type === 'geojson_uploaded_notification') {
+          console.log('🎯 Processing GeoJSON upload notification:', data.notification);
+
+          // Only admins of the company should see this notification
+          if (user?.role === 'admin') {
+            console.log('✅ User is admin, showing GeoJSON notification');
+            handleGeoJSONNotification(data.notification);
+          } else {
+            console.log('🔕 User is not admin, filtering out GeoJSON notification');
           }
         }
         // Handle route deletion notifications
@@ -157,7 +172,7 @@ export default function NotifDropdown() {
       try {
         new Notification(newNotification.title, {
           body: newNotification.description,
-          icon: '/favicon.ico',
+          // icon: '/favicon.ico',
           tag: newNotification.id // Prevent duplicate browser notifications
         });
         console.log('📢 Browser notification shown');
@@ -167,6 +182,59 @@ export default function NotifDropdown() {
     }
 
     // Optional: Play sound notification
+    playNotificationSound();
+  };
+
+  const handleGeoJSONNotification = (notification: any) => {
+    // Create a proper notification object
+    const newNotification: Notification = {
+      id: notification.id || `geojson_${Date.now()}`,
+      title: notification.title,
+      description: notification.description,
+      type: notification.type,
+      is_read: notification.is_read || false,
+      created_at: notification.created_at || new Date().toISOString(),
+      data: notification.data
+    };
+
+    console.log('➕ Processing GeoJSON notification:', {
+      id: newNotification.id,
+      type: newNotification.type,
+      title: newNotification.title
+    });
+
+    // Check for duplicates before adding
+    setNotifications(prev => {
+      const exists = prev.some(n => n.id === newNotification.id);
+      if (exists) {
+        console.log('🔄 GeoJSON notification already exists, skipping duplicate:', newNotification.id);
+        return prev;
+      }
+
+      console.log('✅ Adding GeoJSON notification to state:', newNotification.id);
+      return [newNotification, ...prev];
+    });
+
+    // Only increment unread count if it's not read
+    if (!newNotification.is_read) {
+      setUnreadCount(prev => prev + 1);
+      console.log('🔴 Unread count incremented');
+    }
+
+    // Show browser notification (if permission granted)
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(newNotification.title, {
+          body: newNotification.description,
+          // icon: '/favicon.ico',
+          tag: newNotification.id
+        });
+        console.log('📢 Browser GeoJSON notification shown');
+      } catch (browserError) {
+        console.error('❌ Browser GeoJSON notification failed:', browserError);
+      }
+    }
+
     playNotificationSound();
   };
 
@@ -275,7 +343,7 @@ export default function NotifDropdown() {
       try {
         new Notification(deletionNotification.title, {
           body: deletionNotification.description,
-          icon: '/favicon.ico',
+          // icon: '/favicon.ico',
           tag: deletionNotification.id
         });
         console.log('📢 Browser deletion notification shown');
@@ -454,6 +522,12 @@ export default function NotifDropdown() {
                   <div className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs w-full">
                     <strong>Route:</strong> {notif.data.route_name}<br />
                     <strong>Company:</strong> {notif.data.company_name}<br />
+                  </div>
+                )}
+                {notif.type === 'geojson_uploaded' && notif.data && (
+                  <div className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs w-full">
+                    <strong>Route:</strong> {notif.data.route_name}<br />
+                    <strong>Uploaded by:</strong> {notif.data.uploaded_by}<br />
                   </div>
                 )}
               </DropdownMenuItem>
