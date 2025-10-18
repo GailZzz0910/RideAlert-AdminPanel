@@ -14,12 +14,13 @@ interface ETAData {
 interface UseVehicleETAProps {
   vehicleId: string;
   userLocation: { latitude: number; longitude: number } | null;
+  isEnabled?: boolean; // New prop to control if ETA calculation should run
 }
 
 // Configure your backend URL here
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-export const useVehicleETA = ({ vehicleId, userLocation }: UseVehicleETAProps) => {
+export const useVehicleETA = ({ vehicleId, userLocation, isEnabled = true }: UseVehicleETAProps) => {
   const { token } = useUser();
   const [etaData, setEtaData] = useState<ETAData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,8 @@ export const useVehicleETA = ({ vehicleId, userLocation }: UseVehicleETAProps) =
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const calculateETA = async () => {
+    // Don't calculate if not enabled
+    if (!isEnabled) return;
     if (!userLocation || !token) return;
 
     try {
@@ -72,6 +75,7 @@ export const useVehicleETA = ({ vehicleId, userLocation }: UseVehicleETAProps) =
   };
 
   const connectToWebSocket = () => {
+    if (!isEnabled) return;
     if (!token || !vehicleId) return;
 
     try {
@@ -120,7 +124,7 @@ export const useVehicleETA = ({ vehicleId, userLocation }: UseVehicleETAProps) =
   };
 
   useEffect(() => {
-    if (!userLocation || !vehicleId) return;
+    if (!isEnabled || !userLocation || !vehicleId) return;
 
     calculateETA();
     connectToWebSocket();
@@ -137,7 +141,7 @@ export const useVehicleETA = ({ vehicleId, userLocation }: UseVehicleETAProps) =
         wsRef.current.close();
       }
     };
-  }, [vehicleId, userLocation, token]);
+  }, [vehicleId, userLocation, token, isEnabled]);
 
   return {
     etaData,

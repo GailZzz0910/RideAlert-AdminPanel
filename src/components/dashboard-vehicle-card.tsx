@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Loader2, AlertCircle } from "lucide-react";
+import { MapPin, AlertCircle } from "lucide-react";
 import { useVehicleETA } from "@/hooks/useVehicleETA";
 
 export interface DashboardVehicleCardProps {
@@ -34,9 +34,14 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
   className,
 }) => {
   const navigate = useNavigate();
+  
+  // Check if vehicle is unavailable - pass this to the hook
+  const isUnavailable = subtitle?.status === "unavailable";
+  
   const { etaData, loading, error } = useVehicleETA({
     vehicleId: id,
     userLocation,
+    isEnabled: !isUnavailable, // Disable ETA calculation if unavailable
   });
 
   const handleMapClick = () => {
@@ -44,10 +49,20 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
   };
 
   const etaDisplay = useMemo(() => {
+    // If vehicle is unavailable, show unavailable message
+    if (isUnavailable) {
+      return (
+        <div className="flex items-center gap-1 text-gray-500">
+          <AlertCircle className="w-3 h-3" />
+          <span className="text-xs">Unavailable</span>
+        </div>
+      );
+    }
+
     if (loading) {
       return (
         <div className="flex items-center gap-1">
-          <Loader2 className="w-3 h-3 animate-spin" />
+          <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           <span className="text-xs">Calculating...</span>
         </div>
       );
@@ -76,7 +91,7 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
     }
 
     return <span className="text-sm text-muted-foreground">N/A</span>;
-  }, [etaData, loading, error]);
+  }, [etaData, loading, error, isUnavailable]);
 
   return (
     <Card className={cn("w-full bg-card border-border", className)}>
@@ -122,7 +137,7 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
             </div>
           </div>
 
-          {etaData && (
+          {etaData && !isUnavailable && (
             <div className="pt-2 border-t border-border/50">
               <div className="text-xs text-muted-foreground space-y-1">
                 <div className="flex justify-between">
