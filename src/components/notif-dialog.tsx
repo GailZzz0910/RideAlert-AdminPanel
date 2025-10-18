@@ -10,6 +10,7 @@ import {
 import { Bell, Check, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useUser } from '@/context/userContext';
+import { apiBaseURL, wsBaseURL } from '@/utils/api';
 
 interface Notification {
   id: string;
@@ -35,8 +36,7 @@ export default function NotifDropdown() {
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//localhost:8000/declared_routes/ws/routes`;
+    const wsUrl = `${wsBaseURL}/declared_routes/ws/routes`;
 
     console.log('🔗 Connecting to route notifications WebSocket:', wsUrl);
 
@@ -253,7 +253,7 @@ export default function NotifDropdown() {
 
     try {
       console.log('📡 Fetching notifications from backend API...');
-      const response = await fetch('http://localhost:8000/notifications/', {
+      const response = await fetch(`${apiBaseURL}/notifications/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -387,7 +387,7 @@ export default function NotifDropdown() {
     if (!token) return;
 
     try {
-      await fetch(`http://localhost:8000/notifications/${notificationId}/read`, {
+      await fetch(`${apiBaseURL}/notifications/${notificationId}/read`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -407,7 +407,7 @@ export default function NotifDropdown() {
     if (!token) return;
 
     try {
-      await fetch('http://localhost:8000/notifications/read-all', {
+      await fetch(`${apiBaseURL}/notifications/read-all`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
