@@ -34,10 +34,10 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
   className,
 }) => {
   const navigate = useNavigate();
-  
+
   // Check if vehicle is unavailable - pass this to the hook
   const isUnavailable = subtitle?.status === "unavailable";
-  
+
   const { etaData, loading, error } = useVehicleETA({
     vehicleId: id,
     userLocation,
@@ -150,9 +150,9 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
                   <span>Status:</span>
                   <span className={cn(
                     "text-foreground",
-                    etaData.is_stopped ? "text-orange-500" : "text-green-500"
+                    etaData.current_speed_kmh === 0 ? "text-orange-500" : "text-green-500"
                   )}>
-                    {etaData.is_stopped ? "Stopped" : "Moving"}
+                    {etaData.current_speed_kmh === 0 ? "Stopped" : "Moving"}
                   </span>
                 </div>
               </div>
