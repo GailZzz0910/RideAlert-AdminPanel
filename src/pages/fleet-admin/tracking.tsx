@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardVehicleCard } from "@/components/dashboard-vehicle-card";
@@ -34,12 +34,38 @@ type ViewMode = "all" | "specific";
 
 export default function TrackingPage() {
   const [activeView, setActiveView] = useState<ViewMode>("all");
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const { user } = useUser();
   
   const fleetId = user?.id;
   const liveVehicles = useVehicleWebSocket(
     `${wsBaseURL}/ws/vehicles/all/${fleetId}`
   );
+
+  // Get user's current location
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      console.warn("Geolocation not supported");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      (error) => {
+        console.warn("Geolocation error:", error);
+        // Set default location (Cagayan de Oro)
+        setUserLocation({
+          latitude: 8.4606,
+          longitude: 124.6326,
+        });
+      }
+    );
+  }, []);
 
   // Helper functions for vehicle data
   const getVehicleStatusFromData = (status: string): string => {
@@ -66,10 +92,11 @@ export default function TrackingPage() {
       default:
         return "text-white bg-gray-500";
     }
-  }
-  // Filter vehicles for specific view (you can customize this logic)
+  };
+
+  // Filter vehicles for specific view
   const filteredVehicles = activeView === "specific" 
-    ? liveVehicles.filter(v => v.status === "available") // Example: only show available vehicles
+    ? liveVehicles.filter(v => v.status === "available")
     : liveVehicles;
 
   return (
@@ -89,7 +116,7 @@ export default function TrackingPage() {
                       : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
-                  Specific Vehicles
+                  All Vehicles
                 </button>
                 <button
                   onClick={() => setActiveView("specific")}
@@ -99,7 +126,7 @@ export default function TrackingPage() {
                       : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
-                  All Vehicles
+                  Available Vehicles
                 </button>
               </div>
             </CardContent>
@@ -110,24 +137,51 @@ export default function TrackingPage() {
         <div className="flex flex-col gap-2">
           {activeView === "all" ? (
             <div>
-              <h2 className="text-xl font-semibold text-foreground">Specific Vehicle View</h2>
+              <h2 className="text-xl font-semibold text-foreground">All Vehicles View</h2>
               <p className="text-muted-foreground">
-                This view tracks your selected PUV on maps.
+                Oversee all PUVs in your fleet with real-time tracking information.
               </p>
             </div>
           ) : (
             <div>
-              <h2 className="text-xl font-semibold text-foreground">All Vehicles View</h2>
+              <h2 className="text-xl font-semibold text-foreground">Available Vehicles View</h2>
               <p className="text-muted-foreground">
-                Oversee all PUVs in your fleet with real-time tracking information.
+                Track available PUVs on the map with real-time location updates.
               </p>
             </div>
           )}
         </div>
 
         {/* Vehicle Display */}
-        {activeView === "specific" ? (
-          /* All Vehicles View - Show Map */
+        {activeView === "all" ? (
+          /* All Vehicles View - Show Vehicle Cards */
+          filteredVehicles.length === 0 ? (
+            <div className="flex items-center justify-center h-40 text-muted-foreground text-lg font-medium">
+              No Vehicles Found
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-4 md:gap-6 mb-10">
+              {filteredVehicles.map((v) => (
+                <div key={v.id} className="flex-shrink-0 min-w-[280px] max-w-[350px]">
+                  <DashboardVehicleCard
+                    id={v.id}
+                    title={v.route}
+                    subtitle={v}
+                    status={getVehicleStatusFromData(v.status)}
+                    statusColor={getStatusColorFromData(v.status)}
+                    orderCompleted={v.available_seats}
+                    lastCheckIn={"N/A"}
+                    lastCheckInAgo={v.status === 'available' ? 'Available' : v.status === 'full' ? 'Full' : 'Unavailable'}
+                    maxLoad={"30 seats"}
+                    driver={v.driverName}
+                    userLocation={userLocation}
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+          /* Available Vehicles Map View */
           <div className="h-[calc(100vh-300px)] w-full rounded-lg overflow-hidden border">
             <MapContainer
               {...({ center: center as any, zoom: 13, style: { height: '100%', width: '100%' }, zoomControl: true } as any)}
@@ -136,8 +190,8 @@ export default function TrackingPage() {
                 {...({ url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' } as any)}
               />
               
-              {/* Add markers for all vehicles */}
-              {liveVehicles.map((vehicle) => (
+              {/* Add markers for available vehicles */}
+              {filteredVehicles.map((vehicle) => (
                 vehicle.location && (
                   <Marker
                     key={vehicle.id}
@@ -157,33 +211,6 @@ export default function TrackingPage() {
               ))}
             </MapContainer>
           </div>
-        ) : (
-          /* Specific Vehicles View - Show Vehicle Cards */
-          filteredVehicles.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-muted-foreground text-lg font-medium">
-              No Vehicles Found
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-4 md:gap-6 mb-10">
-              {filteredVehicles.map((v) => (
-                <div key={v.id} className="flex-shrink-0 min-w-[280px] max-w-[350px]">
-                  <DashboardVehicleCard
-                  key={v.id}
-                  id={v.id}
-                  title={v.route}
-                  subtitle={`ETA: unknown`}
-                  status={getVehicleStatusFromData(v.status)}
-                  statusColor={getStatusColorFromData(v.status)}
-                  orderCompleted={v.available_seats}
-                  lastCheckIn={"N/A"}
-                  lastCheckInAgo={v.status === 'available' ? 'Available' : v.status === 'full' ? 'Full' : 'Unavailable'}
-                  maxLoad={"30 seats"}
-                    driver={v.driverName}
-                  />
-                </div>
-              ))}
-            </div>
-          )
         )}
       </div>
     </ScrollArea>
