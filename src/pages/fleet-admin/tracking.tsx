@@ -184,10 +184,14 @@ export default function TrackingPage() {
           /* Available Vehicles Map View */
           <div className="h-[calc(100vh-300px)] w-full rounded-lg overflow-hidden border">
             <MapContainer
-              {...({ center: center as any, zoom: 13, style: { height: '100%', width: '100%' }, zoomControl: true } as any)}
+              center={center}
+              zoom={13}
+              style={{ height: '100%', width: '100%' }}
+              zoomControl={true}
             >
               <TileLayer
-                {...({ url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' } as any)}
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
               {/* Add markers for available vehicles */}
@@ -195,7 +199,8 @@ export default function TrackingPage() {
                 vehicle.location && (
                   <Marker
                     key={vehicle.id}
-                    {...({ position: [vehicle.location.latitude, vehicle.location.longitude], icon: vehicleIcon } as any)}
+                    position={[vehicle.location.latitude, vehicle.location.longitude]}
+                    icon={vehicleIcon}
                   >
                     <Popup>
                       <div className="p-2">

@@ -344,18 +344,10 @@ const Map: React.FC = () => {
   return (
     <div style={{ height: 'calc(100vh - 64px)', width: '100%', position: 'relative', zIndex: 0 }}>
       <MapContainer
-        {...({ 
-          center: center as any, 
-          zoom: 13, 
-          style: { height: '100%', width: '100%', zIndex: 0 }, 
-          whenCreated: (map: any) => {
-            try {
-              map?.zoomControl?.setPosition && map.zoomControl.setPosition('topright');
-            } catch (e) {
-              // ignore
-            }
-          } 
-        } as any)}
+        center={center}
+        zoom={13}
+        style={{ height: '100%', width: '100%', zIndex: 0 }}
+        zoomControl={true}
       >
         {/* OpenStreetMap tiles */}
         <TileLayer
@@ -366,15 +358,13 @@ const Map: React.FC = () => {
         {/* User location marker */}
         {userLocation && (
           <Marker 
-            {...({ 
-              position: userLocation, 
-              icon: userIcon, 
-              eventHandlers: { 
-                click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' }) 
-              } 
-            } as any)}
+            position={userLocation}
+            icon={userIcon}
+            eventHandlers={{ 
+              click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' }) 
+            }}
           >
-            <Popup {...({ onClose: handlePopupClose } as any)}>
+            <Popup onClose={handlePopupClose}>
               <div className="p-2">
                 <h3 className="font-bold text-sm">Your Location</h3>
               </div>
@@ -385,18 +375,16 @@ const Map: React.FC = () => {
         {/* Vehicle location marker */}
         {vehicleLocation && (
           <Marker 
-            {...({ 
-              position: vehicleLocation, 
-              icon: vehicleIcon, 
-              eventHandlers: { 
-                click: () => handleMarkerClick({ 
-                  position: vehicleLocation, 
-                  title: vehicleData?.route || 'Vehicle' 
-                }) 
-              } 
-            } as any)}
+            position={vehicleLocation}
+            icon={vehicleIcon}
+            eventHandlers={{ 
+              click: () => handleMarkerClick({ 
+                position: vehicleLocation, 
+                title: vehicleData?.route || 'Vehicle' 
+              }) 
+            }}
           >
-            <Popup {...({ onClose: handlePopupClose } as any)}>
+            <Popup onClose={handlePopupClose}>
               <div className="p-2">
                 <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
                 <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>
