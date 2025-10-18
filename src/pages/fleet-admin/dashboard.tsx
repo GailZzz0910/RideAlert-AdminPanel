@@ -16,33 +16,61 @@ import { useVehicle } from "@/context/vehicleContext";
 import { useVehicleWebSocket } from "@/components/useVehicleWebsocket";
 import { wsBaseURL } from "@/utils/api";
 
+interface UserLocation {
+  latitude: number;
+  longitude: number;
+}
+
 export default function DashboardPage() {
   const { user, token } = useUser();
   const [searchValue, setSearchValue] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Any");
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
-  const fleetId = user?.id; // <-- your logs show user.id is the fleet_id
+  const fleetId = user?.id;
   const liveVehicles = useVehicleWebSocket(
     `${wsBaseURL}/ws/vehicles/all/${fleetId}`
   );
+
+  // Get user's current location
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation not supported");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setLocationError(null);
+      },
+      (error) => {
+        console.warn("Geolocation error:", error);
+        setLocationError("Unable to get location");
+        // Set default location (can be replaced with a default city)
+        setUserLocation({
+          latitude: 8.4606, // Cagayan de Oro default
+          longitude: 124.6326,
+        });
+      }
+    );
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    console.log("Current user:", user);
-    console.log("Current token:", token);
-  }, [user, token]);
-
   const total = liveVehicles.length;
   const available = liveVehicles.filter(v => v.status === "available").length;
   const full = liveVehicles.filter(v => v.status === "full").length;
   const unavailable = liveVehicles.filter(v => v.status === "unavailable").length;
 
-  // Filter vehicles by type
   const filteredVehicles = liveVehicles.filter((v) => {
     const matchesType =
       selectedVehicleType === "Any" ||
@@ -76,9 +104,7 @@ export default function DashboardPage() {
 
         {/* Filter Section */}
         <div className="flex items-center justify-between gap-4 rounded-lg">
-          {/* Left side - Search only */}
           <div className="flex items-center gap-4 flex-1">
-            {/* Search Vehicle */}
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <input
@@ -91,7 +117,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right side - Filter Dropdown and View Toggle */}
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -138,26 +163,24 @@ export default function DashboardPage() {
                 key={v.id}
                 id={v.id}
                 title={v.route}
-                subtitle={`ETA: unknown`} // Replace with real ETA if available
+                subtitle={v} // Pass entire vehicle object for ETA calculation
                 status={getVehicleStatusFromData(v.status)}
                 statusColor={getStatusColorFromData(v.status)}
                 orderCompleted={v.available_seats}
                 lastCheckIn={"N/A"}
                 lastCheckInAgo={v.status === 'available' ? 'Available' : v.status === 'full' ? 'Full' : 'Unavailable'}
-                maxLoad={"30 seats"} // Or use dynamic value
-                  driver={v.driverName}
-                />
-              </div>
+                maxLoad={"30 seats"}
+                driver={v.driverName}
+                userLocation={userLocation}
+              />
             ))}
           </div>
         )}
       </div>
     </ScrollArea>
-
   );
 }
 
-// Helper functions for vehicle data
 function getVehicleStatusFromData(status: string): string {
   switch (status) {
     case 'available':
