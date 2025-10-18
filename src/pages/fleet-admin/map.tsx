@@ -181,8 +181,8 @@
 
 // export default Map;
 
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { useLocation } from 'react-router-dom';
 import useVehicleLocationWS from '@/components/useVehicleLocationWS';
 import L from 'leaflet';
@@ -218,10 +218,24 @@ const vehicleIcon = new L.Icon({
 // Default center (Cagayan de Oro, Philippines)
 const center: [number, number] = [8.4803, 124.6498];
 
+interface VehicleData {
+  id: string;
+  route: string;
+  driverName: string;
+  status: string;
+  available_seats: number;
+  plate: string;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
 const Map: React.FC = () => {
   const [selectedMarker, setSelectedMarker] = useState<any>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [vehicleLocation, setVehicleLocation] = useState<[number, number] | null>(null);
+  const [vehicleData, setVehicleData] = useState<VehicleData | null>(null);
 
   // Read vehicleId from query string
   const location = useLocation();
@@ -244,7 +258,7 @@ const Map: React.FC = () => {
     }
   }, [liveLoc]);
 
-  // Fetch initial vehicle location
+  // Fetch initial vehicle data
   useEffect(() => {
     if (!vehicleId) return;
 
@@ -255,13 +269,16 @@ const Map: React.FC = () => {
         const res = await fetch(`${apiBase}/vehicles/${vehicleId}`);
         if (!res.ok) return;
         const data = await res.json();
+
+        setVehicleData(data);
+
         const loc = data?.location;
         if (loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
           const initial: [number, number] = [loc.latitude, loc.longitude];
           setVehicleLocation(initial);
         }
       } catch (e) {
-        console.error('Failed to fetch initial vehicle location', e);
+        console.error('Failed to fetch initial vehicle data', e);
       }
     })();
   }, [vehicleId]);
@@ -285,6 +302,33 @@ const Map: React.FC = () => {
     }
   }, []);
 
+  // Helper functions
+  const getVehicleStatusFromData = (status: string): string => {
+    switch (status?.toLowerCase()) {
+      case 'available':
+        return 'Available';
+      case 'full':
+        return 'Full';
+      case 'unavailable':
+        return 'Unavailable';
+      default:
+        return status || 'Unknown';
+    }
+  };
+
+  const getStatusColorFromData = (status: string): string => {
+    switch (status?.toLowerCase()) {
+      case 'available':
+        return 'bg-green-500';
+      case 'full':
+        return 'bg-orange-500';
+      case 'unavailable':
+        return 'bg-gray-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
   const handleMarkerClick = (marker: any) => {
     setSelectedMarker(marker);
   };
@@ -294,32 +338,41 @@ const Map: React.FC = () => {
   };
 
   return (
-    // Reserve space for fixed header (64px) so map controls and status aren't hidden underneath
     <div style={{ height: 'calc(100vh - 64px)', width: '100%', position: 'relative', zIndex: 0 }}>
-
       <MapContainer
-        {...({ center: center as any, zoom: 13, style: { height: '100%', width: '100%', zIndex: 0 }, whenCreated: (map: any) => {
-          try {
-            // Move default zoom control to top-right so it doesn't overlap the header
-            map?.zoomControl?.setPosition && map.zoomControl.setPosition('topright');
-          } catch (e) {
-            // ignore
+        {...({
+          center: center as any,
+          zoom: 13,
+          style: { height: '100%', width: '100%', zIndex: 0 },
+          whenCreated: (map: any) => {
+            try {
+              map?.zoomControl?.setPosition && map.zoomControl.setPosition('topright');
+            } catch (e) {
+              // ignore
+            }
           }
-        } } as any)}
+        } as any)}
       >
-        {/* REMOVED: MapController component that was causing auto-panning */}
-
-        {/* OpenStreetMap tiles (free) */}
+        {/* OpenStreetMap tiles */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
         {/* User location marker */}
         {userLocation && (
-          <Marker {...({ position: userLocation, icon: userIcon, eventHandlers: { click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' }) } } as any)}>
+          <Marker
+            {...({
+              position: userLocation,
+              icon: userIcon,
+              eventHandlers: {
+                click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
+              }
+            } as any)}
+          >
             <Popup {...({ onClose: handlePopupClose } as any)}>
-              <div>
-                <h3 className="font-bold">Your Location</h3>
+              <div className="p-2">
+                <h3 className="font-bold text-sm">Your Location</h3>
               </div>
             </Popup>
           </Marker>
@@ -327,12 +380,25 @@ const Map: React.FC = () => {
 
         {/* Vehicle location marker */}
         {vehicleLocation && (
-          <Marker {...({ position: vehicleLocation, icon: vehicleIcon, eventHandlers: { click: () => handleMarkerClick({ position: vehicleLocation, title: meta?.vehicleId ? `Vehicle ${meta.vehicleId}` : `Device ${meta?.deviceId ?? ''}` }) } } as any)}>
+          <Marker
+            {...({
+              position: vehicleLocation,
+              icon: vehicleIcon,
+              eventHandlers: {
+                click: () => handleMarkerClick({
+                  position: vehicleLocation,
+                  title: vehicleData?.route || 'Vehicle'
+                })
+              }
+            } as any)}
+          >
             <Popup {...({ onClose: handlePopupClose } as any)}>
-              <div>
-                <h3 className="font-bold">
-                  {meta?.vehicleId ? `Vehicle ${meta.vehicleId}` : `Device ${meta?.deviceId ?? ''}`}
-                </h3>
+              <div className="p-2">
+                <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
+                <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>
+                <p className="text-sm">Status: {getVehicleStatusFromData(vehicleData.status)}</p>
+                <p className="text-sm">Available Seats: {vehicleData?.available_seats || 0}</p>
+                <p className="text-sm">Plate: {vehicleData?.plate || 'N/A'}</p>
               </div>
             </Popup>
           </Marker>
