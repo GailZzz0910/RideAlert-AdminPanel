@@ -160,19 +160,19 @@ export default function DashboardPage() {
             {filteredVehicles.map((v) => (
               <div key={v.id} className="flex-shrink-0 min-w-[280px] max-w-[350px]">
                 <DashboardVehicleCard
-                key={v.id}
-                id={v.id}
-                title={v.route}
-                subtitle={v} // Pass entire vehicle object for ETA calculation
-                status={getVehicleStatusFromData(v.status)}
-                statusColor={getStatusColorFromData(v.status)}
-                orderCompleted={v.available_seats}
-                lastCheckIn={"N/A"}
-                lastCheckInAgo={v.status === 'available' ? 'Available' : v.status === 'full' ? 'Full' : 'Unavailable'}
-                maxLoad={"30 seats"}
-                driver={v.driverName}
-                userLocation={userLocation}
-              />
+                  id={v.id}
+                  title={v.route}
+                  subtitle={v}
+                  status={getVehicleStatusFromData(v.status)}
+                  statusColor={getStatusColorFromData(v.status)}
+                  orderCompleted={v.available_seats}
+                  lastCheckIn={"N/A"}
+                  lastCheckInAgo={v.status === 'available' ? 'Available' : v.status === 'full' ? 'Full' : 'Unavailable'}
+                  maxLoad={"30 seats"}
+                  driver={v.driverName}
+                  userLocation={userLocation}
+                />
+              </div>
             ))}
           </div>
         )}
