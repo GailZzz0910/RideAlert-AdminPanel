@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import BusAnimation from "../assets/Bus.json";
 import { apiBaseURL } from "@/utils/api";
+import { useUser } from "@/context/userContext";
 
 interface PlanFeature {
   name: string;
@@ -83,6 +84,8 @@ export default function Register() {
     landmarkEnd: "",
     geojsonFile: null
   });
+
+  const { user, token } = useUser();
 
   const plans: SubscriptionPlan[] = [
     {
@@ -549,48 +552,28 @@ export default function Register() {
     setError("");
 
     try {
-      console.log("🛣️ Starting route registration for company:", companyId);
-
-      // First, get the fleet document to get the ObjectId
-      console.log("🔍 Fetching fleet document for company code:", companyId);
-      const fleetResponse = await fetch(`${apiBaseURL}/fleets/code/${companyId}`);
-
-      if (!fleetResponse.ok) {
-        throw new Error(`Failed to fetch company details: ${fleetResponse.statusText}`);
-      }
-
-      const fleetData = await fleetResponse.json();
-      console.log("📋 Fleet data:", fleetData);
-
-      // Get the ObjectId from the fleet document
-      const companyObjectId = fleetData._id || fleetData.id;
-
-      if (!companyObjectId) {
-        throw new Error("Could not find company ID. Please try again.");
-      }
-
-      console.log("🎯 Using company ObjectId:", companyObjectId);
+      console.log("🛣️ Starting route registration for company code:", companyId);
 
       // Send each route to the backend using FormData
       const routePromises = routes.map(async (route, index) => {
         const formData = new FormData();
 
-        // Add required fields - use the ObjectId as company_id
-        formData.append('company_id', companyObjectId);
+        // Add company code for public registration endpoint
+        formData.append('company_code', companyId);
         formData.append('start_location', route.startLocation);
         formData.append('end_location', route.endLocation);
         formData.append('landmark_details_start', route.landmarkStart || '');
         formData.append('landmark_details_end', route.landmarkEnd || '');
 
         console.log(`📤 Sending route ${index + 1}:`, {
-          company_id: companyObjectId,
+          company_code: companyId,
           start_location: route.startLocation,
           end_location: route.endLocation,
           landmark_details_start: route.landmarkStart,
           landmark_details_end: route.landmarkEnd
         });
 
-        const response = await fetch(`${apiBaseURL}/declared_routes/route-register`, {
+        const response = await fetch(`${apiBaseURL}/declared_routes/route-register-public`, {
           method: 'POST',
           body: formData,
         });

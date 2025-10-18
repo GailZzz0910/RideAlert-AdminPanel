@@ -57,29 +57,41 @@ export default function SuperAdminAddRoutes() {
         console.log('WebSocket connected for real-time routes');
       };
 
+      // In SuperAdminAddRoutes.tsx - Update the WebSocket message handler
       ws.current.onmessage = (event) => {
         const message = JSON.parse(event.data);
+        console.log('📨 WebSocket message received in SuperAdminAddRoutes:', message);
 
-        if (message.type === 'new_route') {
+        // Handle new route notifications (from route creation)
+        if (message.type === 'new_route_notification') {
+          console.log('🎯 Processing new route notification:', message.notification);
+
           const newRoute: Route = {
-            id: message.route._id,
-            company: message.route.company_name,
-            startLocation: message.route.start_location,
-            endLocation: message.route.end_location,
-            landmarkStart: message.route.landmark_details_start || '',
-            landmarkEnd: message.route.landmark_details_end || '',
+            id: message.notification.data.route_id,
+            company: message.notification.data.company_name,
+            startLocation: message.notification.data.start_location,
+            endLocation: message.notification.data.end_location,
+            landmarkStart: message.notification.data.landmark_details_start || '',
+            landmarkEnd: message.notification.data.landmark_details_end || '',
+            hasGeoJSON: false // New routes won't have GeoJSON initially
           };
+
+          console.log('➕ Adding new route to table:', newRoute);
 
           setRoutes(prev => {
             const exists = prev.some(r => r.id === newRoute.id);
             if (exists) {
-              console.log('Route already exists, skipping duplicate:', newRoute.id);
+              console.log('🔄 Route already exists, skipping duplicate:', newRoute.id);
               return prev;
             }
             return [...prev, newRoute];
           });
 
-        } else if (message.type === 'updated_route') {
+        }
+        // Handle route updates (from your existing code)
+        else if (message.type === 'updated_route') {
+          console.log('🔄 Processing route update:', message.route);
+
           const updatedRoute: Route = {
             id: message.route._id,
             company: message.route.company_name,
@@ -87,19 +99,51 @@ export default function SuperAdminAddRoutes() {
             endLocation: message.route.end_location,
             landmarkStart: message.route.landmark_details_start || '',
             landmarkEnd: message.route.landmark_details_end || '',
+            hasGeoJSON: false // You might want to preserve this from existing data
           };
 
           setRoutes(prev => {
             const exists = prev.some(r => r.id === updatedRoute.id);
             if (exists) {
+              console.log('🔄 Updating existing route:', updatedRoute.id);
               return prev.map(r => r.id === updatedRoute.id ? updatedRoute : r);
             } else {
+              console.log('➕ Adding updated route:', updatedRoute.id);
               return [...prev, updatedRoute];
             }
           });
 
-        } else if (message.type === 'deleted_route') {
+        }
+        // Handle route deletions (from your existing code)
+        else if (message.type === 'deleted_route') {
+          console.log('🗑️ Processing route deletion:', message.route_id);
           setRoutes(prev => prev.filter(r => r.id !== message.route_id));
+        }
+        // Handle the old format (backward compatibility)
+        else if (message.type === 'new_route') {
+          console.log('📨 Processing legacy new_route message:', message.route);
+
+          const newRoute: Route = {
+            id: message.route._id,
+            company: message.route.company_name,
+            startLocation: message.route.start_location,
+            endLocation: message.route.end_location,
+            landmarkStart: message.route.landmark_details_start || '',
+            landmarkEnd: message.route.landmark_details_end || '',
+            hasGeoJSON: false
+          };
+
+          setRoutes(prev => {
+            const exists = prev.some(r => r.id === newRoute.id);
+            if (exists) {
+              console.log('🔄 Route already exists, skipping duplicate:', newRoute.id);
+              return prev;
+            }
+            return [...prev, newRoute];
+          });
+        }
+        else {
+          console.log('📨 Other WebSocket message type:', message.type);
         }
       };
 
