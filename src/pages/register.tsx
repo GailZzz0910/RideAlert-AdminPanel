@@ -1006,7 +1006,7 @@ export default function Register() {
                                   />
                                   <button
                                     type="button"
-                                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition-colors"
+                                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
                                     onClick={() => setShowPassword(!showPassword)}
                                     tabIndex={-1}
                                   >
@@ -1034,7 +1034,7 @@ export default function Register() {
                                   />
                                   <button
                                     type="button"
-                                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition-colors"
+                                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                     tabIndex={-1}
                                   >
@@ -1140,7 +1140,7 @@ export default function Register() {
                                         <button
                                           type="button"
                                           onClick={() => removeFile(index)}
-                                          className="text-red-400 hover:text-red-300 transition-colors"
+                                          className="text-red-400 hover:text-red-300 transition-colors cursor-pointer"
                                         >
                                           <X className="w-4 h-4" />
                                         </button>

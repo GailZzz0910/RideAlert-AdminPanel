@@ -171,7 +171,7 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
         <span className="text-sm text-muted-foreground font-medium">{`${selectedRows.length} of ${vehicles.length} row(s) selected.`}</span>
         <div className="flex items-center gap-4">
           <button
-            className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold text-foreground hover:bg-muted transition disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold text-foreground hover:bg-muted transition disabled:opacity-50 cursor-pointer"
             disabled={page === 1}
             onClick={() => setPage(page - 1)}
           >
@@ -179,7 +179,7 @@ export const VehicleListView: React.FC<VehicleListViewProps> = ({ vehicles }) =>
           </button>
           <span className="text-base font-semibold text-foreground">Page {page} of {totalPages}</span>
           <button
-            className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold text-foreground hover:bg-muted transition disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold text-foreground hover:bg-muted transition disabled:opacity-50 cursor-pointer"
             disabled={page === totalPages}
             onClick={() => setPage(page + 1)}
           >

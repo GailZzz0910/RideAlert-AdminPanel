@@ -28,6 +28,7 @@ import {
   CreditCard,
   MapPin,
   Route,
+  Plus,
 } from "lucide-react";
 
 // Memoized Logo component for Super Admin
@@ -103,7 +104,7 @@ const useSuperAdminNavigationLinks = () => {
       {
         label: "Add Routes",
         href: "/super-admin/add-routes",
-        icon: <Route className="w-5 h-5 text-sidebar-foreground" />,
+        icon: <Plus className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/super-admin/add-routes",
       },
     ];
