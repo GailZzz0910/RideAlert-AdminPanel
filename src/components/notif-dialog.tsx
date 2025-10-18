@@ -454,7 +454,6 @@ export default function NotifDropdown() {
                   <div className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs w-full">
                     <strong>Route:</strong> {notif.data.route_name}<br />
                     <strong>Company:</strong> {notif.data.company_name}<br />
-                    <strong>Created by:</strong> {notif.data.created_by}
                   </div>
                 )}
               </DropdownMenuItem>
