@@ -216,7 +216,7 @@ const vehicleIcon = new L.Icon({
 });
 
 // Default center (Cagayan de Oro, Philippines)
-const center: [number, number] = [8.4803, 124.6498];
+const center: L.LatLngExpression = [8.4803, 124.6498];
 
 interface VehicleData {
   id: string;
@@ -233,8 +233,8 @@ interface VehicleData {
 
 const Map: React.FC = () => {
   const [selectedMarker, setSelectedMarker] = useState<any>(null);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const [vehicleLocation, setVehicleLocation] = useState<[number, number] | null>(null);
+  const [userLocation, setUserLocation] = useState<L.LatLngExpression | null>(null);
+  const [vehicleLocation, setVehicleLocation] = useState<L.LatLngExpression | null>(null);
   const [vehicleData, setVehicleData] = useState<VehicleData | null>(null);
 
   // Read vehicleId from query string
@@ -253,7 +253,7 @@ const Map: React.FC = () => {
   // Handle live location updates
   useEffect(() => {
     if (liveLoc) {
-      const newLoc: [number, number] = [liveLoc.latitude, liveLoc.longitude];
+      const newLoc: L.LatLngExpression = [liveLoc.latitude, liveLoc.longitude];
       setVehicleLocation(newLoc);
     }
   }, [liveLoc]);
@@ -274,7 +274,7 @@ const Map: React.FC = () => {
         
         const loc = data?.location;
         if (loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
-          const initial: [number, number] = [loc.latitude, loc.longitude];
+          const initial: L.LatLngExpression = [loc.latitude, loc.longitude];
           setVehicleLocation(initial);
         }
       } catch (e) {
@@ -288,7 +288,7 @@ const Map: React.FC = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const uLoc: [number, number] = [
+          const uLoc: L.LatLngExpression = [
             position.coords.latitude,
             position.coords.longitude
           ];
@@ -347,12 +347,10 @@ const Map: React.FC = () => {
         center={center}
         zoom={13}
         style={{ height: '100%', width: '100%', zIndex: 0 }}
-        zoomControl={true}
       >
         {/* OpenStreetMap tiles */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
         {/* User location marker */}
@@ -364,7 +362,7 @@ const Map: React.FC = () => {
               click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' }) 
             }}
           >
-            <Popup onClose={handlePopupClose}>
+            <Popup>
               <div className="p-2">
                 <h3 className="font-bold text-sm">Your Location</h3>
               </div>
@@ -384,7 +382,7 @@ const Map: React.FC = () => {
               }) 
             }}
           >
-            <Popup onClose={handlePopupClose}>
+            <Popup>
               <div className="p-2">
                 <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
                 <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>

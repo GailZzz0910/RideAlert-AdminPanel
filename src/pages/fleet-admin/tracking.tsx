@@ -28,7 +28,7 @@ const vehicleIcon = new L.Icon({
 });
 
 // Default center (Cagayan de Oro, Philippines)
-const center: [number, number] = [8.4803, 124.6498];
+const center: L.LatLngExpression = [8.4803, 124.6498];
 
 type ViewMode = "all" | "specific";
 
@@ -187,11 +187,9 @@ export default function TrackingPage() {
               center={center}
               zoom={13}
               style={{ height: '100%', width: '100%' }}
-              zoomControl={true}
             >
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
               {/* Add markers for available vehicles */}
@@ -199,7 +197,7 @@ export default function TrackingPage() {
                 vehicle.location && (
                   <Marker
                     key={vehicle.id}
-                    position={[vehicle.location.latitude, vehicle.location.longitude]}
+                    position={[vehicle.location.latitude, vehicle.location.longitude] as L.LatLngExpression}
                     icon={vehicleIcon}
                   >
                     <Popup>
