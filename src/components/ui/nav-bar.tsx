@@ -72,7 +72,7 @@ export default function NavBar() {
             <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="flex items-center justify-center p-2 rounded-lg text-white hover:bg-gray-800"
+                  className="flex items-center justify-center p-2 rounded-lg text-white hover:bg-gray-800 cursor-pointer"
                   aria-label={menuOpen ? "Close menu" : "Open menu"}
                 >
                   {menuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}

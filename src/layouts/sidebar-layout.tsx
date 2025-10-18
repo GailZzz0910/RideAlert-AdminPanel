@@ -18,7 +18,8 @@ import {
   Car, 
   Cpu,
   Route,
-  Navigation
+  Navigation,
+  Map,
 } from "lucide-react";
 import { useUser } from "@/context/userContext";
 import logoImage from "@/assets/logo.png";
@@ -82,6 +83,12 @@ const useNavigationLinks = () => {
         href: "/dashboard/iot-management",
         icon: <Cpu className="w-5 h-5 text-sidebar-foreground" />,
         isActive: location.pathname === "/dashboard/iot-management",
+      },
+      {
+        label: "Tracking",
+        href: "/dashboard/tracking",
+        icon: <Map className="w-5 h-5 text-sidebar-foreground" />,
+        isActive: location.pathname === "/dashboard/tracking",
       },
     ];
 
@@ -154,6 +161,8 @@ const getPageTitle = (pathname: string) => {
       return "Vehicle Management";
     case "/dashboard/iot-management":
       return "IoT Management";
+    case "/dashboard/tracking":
+      return "Vehicle Tracking";
     case "/dashboard/add-routes":
       return "Add Routes";
     case "/dashboard/assign-routes":

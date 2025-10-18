@@ -37,19 +37,19 @@ export const DashboardVehicleCard: React.FC<DashboardVehicleCardProps> = ({
   };
 
   return (
-    <Card className="w-full bg-card border-border">
+    <Card className="w-full bg-card border-border h-fit">
       <CardContent className="p-0">
         <div className="p-4 space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg text-foreground leading-tight">
+              <h3 className="font-semibold text-lg text-foreground leading-tight break-words">
                 {title}
               </h3>
-              <p className="text-sm text-muted-foreground mt-1">{driver}</p>
+              <p className="text-sm text-muted-foreground mt-1 break-words">{driver}</p>
             </div>
             <span
               className={cn(
-                "text-xs font-medium px-3 py-1.5 rounded-full whitespace-nowrap border",
+                "text-xs font-medium px-3 py-1.5 rounded-full whitespace-nowrap border flex-shrink-0",
                 statusColor
               )}
             >

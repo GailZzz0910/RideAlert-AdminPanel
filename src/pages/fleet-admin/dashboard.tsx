@@ -95,7 +95,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg bg-card text-foreground hover:bg-muted">
+                <button className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg bg-card text-foreground hover:bg-muted cursor-pointer">
                   <ListFilter className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{selectedVehicleType}</span>
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -131,9 +131,10 @@ export default function DashboardPage() {
         ) : filteredVehicles.length === 0 ? (
           <div className="flex items-center justify-center h-40 text-muted-foreground text-lg font-medium">No Vehicles</div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-6 gap-4 md:gap-6 2xl:gap-5 xl:gap-8 mb-10">
+          <div className="flex flex-wrap gap-4 md:gap-6 mb-10">
             {filteredVehicles.map((v) => (
-              <DashboardVehicleCard
+              <div key={v.id} className="flex-shrink-0 min-w-[280px] max-w-[350px]">
+                <DashboardVehicleCard
                 key={v.id}
                 id={v.id}
                 title={v.route}
@@ -144,8 +145,9 @@ export default function DashboardPage() {
                 lastCheckIn={"N/A"}
                 lastCheckInAgo={v.status === 'available' ? 'Available' : v.status === 'full' ? 'Full' : 'Unavailable'}
                 maxLoad={"30 seats"} // Or use dynamic value
-                driver={v.driverName}
-              />
+                  driver={v.driverName}
+                />
+              </div>
             ))}
           </div>
         )}
