@@ -496,7 +496,7 @@ export default function Register() {
       setShowRouteSetup(true);
 
     } catch (err: any) {
-      console.error("❌ Registration error:", err);
+      // console.error("❌ Registration error:", err);
 
       // If it's a CORS error but data was saved, show success message
       if (err.message.includes('CORS') || err.message.includes('Failed to fetch')) {
@@ -580,17 +580,17 @@ export default function Register() {
 
         console.log(`📨 Response for route ${index + 1}:`, response.status);
 
-        if (!response.ok) {
-          let errorDetail = "Unknown error";
-          try {
-            const errorData = await response.json();
-            errorDetail = errorData.detail || errorData.message || JSON.stringify(errorData);
-          } catch (parseError) {
-            errorDetail = response.statusText || `HTTP ${response.status}`;
-          }
+        // if (!response.ok) {
+        //   let errorDetail = "Unknown error";
+        //   try {
+        //     const errorData = await response.json();
+        //     errorDetail = errorData.detail || errorData.message || JSON.stringify(errorData);
+        //   } catch (parseError) {
+        //     errorDetail = response.statusText || `HTTP ${response.status}`;
+        //   }
 
-          throw new Error(`Failed to save route "${route.startLocation} to ${route.endLocation}": ${errorDetail}`);
-        }
+        //   throw new Error(`Failed to save route "${route.startLocation} to ${route.endLocation}": ${errorDetail}`);
+        // }
 
         const result = await response.json();
         console.log(`✅ Route ${index + 1} saved:`, result);

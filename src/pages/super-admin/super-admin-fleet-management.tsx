@@ -192,7 +192,15 @@ export default function SuperAdminFleetManagement() {
 
       const data = await response.json();
       console.log("Approved:", data);
-      alert("Fleet approved successfully");
+
+      // Show success message with email status
+      if (data.email_sent) {
+        alert(`Fleet approved successfully! \nNotification email sent to ${data.company_email}`);
+      } else {
+        alert("Fleet approved successfully! \nNote: Could not send notification email.");
+      }
+
+      // Refresh the data or update UI as needed
     } catch (err) {
       console.error(err);
       alert("Error approving fleet");
@@ -314,7 +322,7 @@ export default function SuperAdminFleetManagement() {
       <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
 
         <h1 className="text-3xl font-bold text-foreground">Fleet Registration Requests</h1>
-            <p className="text-muted-foreground">Manage fleet registrations. Accept or reject requests as needed.</p>
+        <p className="text-muted-foreground">Manage fleet registrations. Accept or reject requests as needed.</p>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
