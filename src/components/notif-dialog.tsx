@@ -172,7 +172,7 @@ export default function NotifDropdown() {
       try {
         new Notification(newNotification.title, {
           body: newNotification.description,
-          // icon: '/favicon.ico',
+          icon: '/logo.png',
           tag: newNotification.id // Prevent duplicate browser notifications
         });
         console.log('📢 Browser notification shown');
@@ -226,7 +226,7 @@ export default function NotifDropdown() {
       try {
         new Notification(newNotification.title, {
           body: newNotification.description,
-          // icon: '/favicon.ico',
+          icon: '/logo.png',
           tag: newNotification.id
         });
         console.log('📢 Browser GeoJSON notification shown');
@@ -343,7 +343,7 @@ export default function NotifDropdown() {
       try {
         new Notification(deletionNotification.title, {
           body: deletionNotification.description,
-          // icon: '/favicon.ico',
+          icon: '/logo.png',
           tag: deletionNotification.id
         });
         console.log('📢 Browser deletion notification shown');
