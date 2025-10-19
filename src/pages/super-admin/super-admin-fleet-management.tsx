@@ -212,22 +212,30 @@ export default function SuperAdminFleetManagement() {
     if (!fleetId) return;
 
     try {
+
       const response = await fetch(`${apiBaseURL}/fleets/${fleetId}/reject`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
-        }
+        },
       });
 
-      if (!response.ok) throw new Error("Failed to approve fleet");
+      if (!response.ok) throw new Error("Failed to reject fleet");
 
       const data = await response.json();
-      console.log("Approved:", data);
-      alert("Fleet approved successfully");
+      console.log("Rejected:", data);
+
+      // Show success message with email status
+      if (data.email_sent) {
+        alert(`Fleet rejected successfully! ❌\nNotification email sent to ${data.company_email}`);
+      } else {
+        alert("Fleet rejected successfully! ❌\nNote: Could not send notification email.");
+      }
+
     } catch (err) {
       console.error(err);
-      alert("Error approving fleet");
+      alert("Error rejecting fleet");
     }
   };
 
