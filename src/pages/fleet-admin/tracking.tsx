@@ -116,7 +116,7 @@ export default function TrackingPage() {
                       : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
-                  All Vehicles
+                  Specific Vehicles
                 </button>
                 <button
                   onClick={() => setActiveView("specific")}
@@ -126,7 +126,7 @@ export default function TrackingPage() {
                       : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
-                  Available Vehicles
+                  All Available Vehicles
                 </button>
               </div>
             </CardContent>
@@ -137,7 +137,7 @@ export default function TrackingPage() {
         <div className="flex flex-col gap-2">
           {activeView === "all" ? (
             <div>
-              <h2 className="text-xl font-semibold text-foreground">All Vehicles View</h2>
+              <h2 className="text-xl font-semibold text-foreground">Specific Vehicles View</h2>
               <p className="text-muted-foreground">
                 Oversee all PUVs in your fleet with real-time tracking information.
               </p>
