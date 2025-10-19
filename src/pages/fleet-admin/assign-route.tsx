@@ -30,10 +30,11 @@ import type { VehicleData } from "@/components/useVehicleWebsocket";
 
 interface Route {
   id: string;
-  startLocation: string;
-  endLocation: string;
-  landmarkStart: string;
-  landmarkEnd: string;
+  start_location: string;
+  end_location: string;
+  landmark_details_start: string;
+  landmark_details_end: string;
+  company_name: string;
   isSelected?: boolean;
 }
 
@@ -51,53 +52,51 @@ export default function AssignRoute() {
   const [selectedRoutes, setSelectedRoutes] = useState<Route[]>([]);
   const [searchValue, setSearchValue] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  // Mock route data for demonstration
-  const mockRoutes: Route[] = [
-    {
-      id: "1",
-      startLocation: "Quezon City",
-      endLocation: "Makati City",
-      landmarkStart: "Quezon Memorial Circle",
-      landmarkEnd: "Ayala Center"
-    },
-    {
-      id: "2",
-      startLocation: "Manila",
-      endLocation: "Pasig City",
-      landmarkStart: "Rizal Park",
-      landmarkEnd: "Emerald Avenue"
-    },
-    {
-      id: "3",
-      startLocation: "Taguig City",
-      endLocation: "Mandaluyong City",
-      landmarkStart: "BGC Central Plaza",
-      landmarkEnd: "SM Megamall"
-    },
-    {
-      id: "4",
-      startLocation: "Paranaque City",
-      endLocation: "Las Pinas City",
-      landmarkStart: "SM Sucat",
-      landmarkEnd: "Alabang Town Center"
-    },
-    {
-      id: "5",
-      startLocation: "Muntinlupa City",
-      endLocation: "Caloocan City",
-      landmarkStart: "Ayala Alabang",
-      landmarkEnd: "LRT Monumento"
-    }
-  ];
-
+  // Fetch available routes from backend
   useEffect(() => {
-    // Load available routes data
-    setAvailableRoutes(mockRoutes);
-  }, []);
+    const fetchRoutes = async () => {
+      if (!token) return;
+      
+      setFetchLoading(true);
+      try {
+        const response = await fetch(`${apiBaseURL}/declared_routes/all/routes`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch routes");
+        }
+
+        const data = await response.json();
+        
+        // Transform backend data to frontend format
+        const formattedRoutes: Route[] = data.map((route: any) => ({
+          id: route._id,
+          start_location: route.start_location,
+          end_location: route.end_location,
+          landmark_details_start: route.landmark_details_start,
+          landmark_details_end: route.landmark_details_end,
+          company_name: route.company_name,
+        }));
+
+        setAvailableRoutes(formattedRoutes);
+      } catch (error) {
+        console.error("Error fetching routes:", error);
+        setError("Failed to load available routes");
+      } finally {
+        setFetchLoading(false);
+      }
+    };
+
+    fetchRoutes();
+  }, [token]);
 
   // Helper function to get status color
   const getStatusColor = (status: string) => {
@@ -130,25 +129,33 @@ export default function AssignRoute() {
   // Filter routes based on search
   const filteredRoutes = availableRoutes.filter((route) => {
     const matchesSearch =
-      route.startLocation.toLowerCase().includes(searchValue.toLowerCase()) ||
-      route.endLocation.toLowerCase().includes(searchValue.toLowerCase()) ||
-      route.landmarkStart.toLowerCase().includes(searchValue.toLowerCase()) ||
-      route.landmarkEnd.toLowerCase().includes(searchValue.toLowerCase());
+      route.start_location.toLowerCase().includes(searchValue.toLowerCase()) ||
+      route.end_location.toLowerCase().includes(searchValue.toLowerCase()) ||
+      route.landmark_details_start.toLowerCase().includes(searchValue.toLowerCase()) ||
+      route.landmark_details_end.toLowerCase().includes(searchValue.toLowerCase()) ||
+      route.company_name.toLowerCase().includes(searchValue.toLowerCase());
     return matchesSearch;
   });
 
   const handleRouteSelect = (route: Route) => {
     const isSelected = selectedRoutes.some(r => r.id === route.id);
     if (isSelected) {
-      setSelectedRoutes(selectedRoutes.filter(r => r.id !== route.id));
+      // If clicking the already selected route, deselect it
+      setSelectedRoutes([]);
     } else {
-      setSelectedRoutes([...selectedRoutes, route]);
+      // Replace any existing selection with the new route (only one route allowed)
+      setSelectedRoutes([route]);
     }
   };
 
   const handleAssignRoutes = async () => {
     if (selectedRoutes.length === 0) {
-      setError("Please select at least one route to assign.");
+      setError("Please select a route to assign.");
+      return;
+    }
+
+    if (!vehicle_id) {
+      setError("Vehicle ID is missing.");
       return;
     }
 
@@ -161,7 +168,7 @@ export default function AssignRoute() {
         route_ids: selectedRoutes.map(r => r.id)
       };
 
-      console.log("🚗 Assigning routes to vehicle:", payload);
+      console.log("🚗 Assigning route to vehicle:", payload);
 
       const response = await fetch(`${apiBaseURL}/assign-route/${vehicle_id}`, {
         method: 'POST',
@@ -172,15 +179,18 @@ export default function AssignRoute() {
         body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
-        setSuccess(`Successfully assigned ${selectedRoutes.length} route(s) to vehicle ${vehicleData?.plate}`);
-        setShowConfirmDialog(true);
-      } else {
-        setError("Failed to assign routes. Please try again.");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to assign route");
       }
+
+      const result = await response.json();
+      
+      setSuccess(result.message || `Successfully assigned route to vehicle ${vehicleData?.plate}`);
+      setShowConfirmDialog(true);
     } catch (error) {
       console.error("❌ Error assigning routes:", error);
-      setError("Error assigning routes. Please try again.");
+      setError(error instanceof Error ? error.message : "Error assigning route. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -207,8 +217,6 @@ export default function AssignRoute() {
       <div className="bg-black/90 backdrop-blur-xl min-h-screen">
         <div className="flex flex-col min-h-screen w-full max-w-6xl mx-auto gap-6 px-7 text-card-foreground p-5">
           {/* Header Section */}
-          
-
           <div className="text-center mb-6">
             <div className="flex items-center justify-center gap-3 mb-4">
               <Route className="w-8 h-8 text-blue-400" />
@@ -265,6 +273,11 @@ export default function AssignRoute() {
                     <span className="flex items-center gap-2">
                       <Route className="w-5 h-5 text-blue-400" />
                       Available Routes ({filteredRoutes.length})
+                      {fetchLoading && (
+                        <Badge variant="outline" className="text-xs">
+                          Loading...
+                        </Badge>
+                      )}
                     </span>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -280,7 +293,12 @@ export default function AssignRoute() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {filteredRoutes.map((route) => {
+                    {fetchLoading ? (
+                      <div className="text-center py-8">
+                        <Clock className="w-8 h-8 text-gray-500 mx-auto mb-3 animate-spin" />
+                        <p className="text-gray-400">Loading routes...</p>
+                      </div>
+                    ) : filteredRoutes.map((route) => {
                       const isSelected = selectedRoutes.some(r => r.id === route.id);
                       return (
                         <div
@@ -294,19 +312,24 @@ export default function AssignRoute() {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="outline" className="text-xs bg-purple-500/20 text-purple-300">
+                                  {route.company_name}
+                                </Badge>
+                              </div>
                               <div className="flex items-center gap-2 mb-2">
                                 <MapPin className="w-4 h-4 text-green-400" />
                                 <span className="text-white font-medium">From:</span>
-                                <span className="text-gray-300">{route.startLocation}</span>
+                                <span className="text-gray-300">{route.start_location}</span>
                               </div>
                               <div className="flex items-center gap-2 mb-2">
                                 <MapPin className="w-4 h-4 text-red-400" />
                                 <span className="text-white font-medium">To:</span>
-                                <span className="text-gray-300">{route.endLocation}</span>
+                                <span className="text-gray-300">{route.end_location}</span>
                               </div>
                               <div className="text-xs text-gray-400 ml-6">
-                                <p>Start: {route.landmarkStart}</p>
-                                <p>End: {route.landmarkEnd}</p>
+                                <p>Start: {route.landmark_details_start || "No landmark"}</p>
+                                <p>End: {route.landmark_details_end || "No landmark"}</p>
                               </div>
                             </div>
                             {isSelected && (
@@ -318,15 +341,15 @@ export default function AssignRoute() {
                         </div>
                       );
                     })}
-                  </div>
 
-                  {filteredRoutes.length === 0 && (
-                    <div className="text-center py-8">
-                      <Route className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-                      <p className="text-gray-400">No routes found</p>
-                      <p className="text-gray-500 text-sm">Try adjusting your search criteria</p>
-                    </div>
-                  )}
+                    {!fetchLoading && filteredRoutes.length === 0 && (
+                      <div className="text-center py-8">
+                        <Route className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                        <p className="text-gray-400">No routes found</p>
+                        <p className="text-gray-500 text-sm">Try adjusting your search criteria</p>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -337,7 +360,7 @@ export default function AssignRoute() {
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <Check className="w-5 h-5 text-green-400" />
-                    Selected Routes ({selectedRoutes.length})
+                    Selected Route ({selectedRoutes.length}/1)
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="h-full">
@@ -346,8 +369,14 @@ export default function AssignRoute() {
                       <div key={route.id} className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
+                            <Badge variant="outline" className="text-xs bg-purple-500/20 text-purple-300 mb-1">
+                              {route.company_name}
+                            </Badge>
                             <p className="text-blue-300 text-sm font-medium">
-                              {route.startLocation} → {route.endLocation}
+                              {route.start_location} → {route.end_location}
+                            </p>
+                            <p className="text-blue-200 text-xs">
+                              {route.landmark_details_start} → {route.landmark_details_end}
                             </p>
                           </div>
                           <Button
@@ -365,8 +394,8 @@ export default function AssignRoute() {
                     {selectedRoutes.length === 0 && (
                       <div className="text-center py-6">
                         <Plus className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-                        <p className="text-gray-400 text-sm">No routes selected</p>
-                        <p className="text-gray-500 text-xs">Click on routes to select them</p>
+                        <p className="text-gray-400 text-sm">No route selected</p>
+                        <p className="text-gray-500 text-xs">Click on a route to select it</p>
                       </div>
                     )}
                   </div>
@@ -377,7 +406,7 @@ export default function AssignRoute() {
               <div className="mt-4">
                 <Button
                   onClick={handleAssignRoutes}
-                  disabled={loading || selectedRoutes.length === 0}
+                  disabled={loading || selectedRoutes.length === 0 || fetchLoading}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
                 >
                   {loading ? (
@@ -386,7 +415,7 @@ export default function AssignRoute() {
                       Assigning...
                     </div>
                   ) : (
-                    `Assign Selected Route${selectedRoutes.length !== 1 ? 's' : ''}`
+                    selectedRoutes.length > 0 ? 'Assign Selected Route' : 'Select a Route to Assign'
                   )}
                 </Button>
               </div>
@@ -424,9 +453,9 @@ export default function AssignRoute() {
                 <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 mx-auto mb-4">
                   <Check className="w-8 h-8 text-green-400" />
                 </div>
-                <DialogTitle className="text-white text-xl">Routes Successfully Assigned!</DialogTitle>
+                <DialogTitle className="text-white text-xl">Route Successfully Assigned!</DialogTitle>
                 <p className="text-gray-400 mt-2">
-                  {selectedRoutes.length} route{selectedRoutes.length !== 1 ? 's have' : ' has'} been assigned to vehicle {vehicleData.plate}.
+                  The selected route has been assigned to vehicle {vehicleData.plate}.
                 </p>
               </DialogHeader>
               <DialogFooter className="mt-6">
