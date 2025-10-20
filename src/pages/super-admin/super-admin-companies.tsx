@@ -748,6 +748,7 @@ export default function CompanyManagement() {
                                 disabled={updating || deleting === (company._id || company.id)}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  e.preventDefault();
                                 }}
                               >
                                 {deleting === (company._id || company.id) ? (
@@ -757,7 +758,7 @@ export default function CompanyManagement() {
                                 )}
                               </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Company</AlertDialogTitle>
                                 <AlertDialogDescription>
@@ -766,11 +767,20 @@ export default function CompanyManagement() {
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel disabled={deleting === (company._id || company.id)}>Cancel</AlertDialogCancel>
+                                <AlertDialogCancel 
+                                  disabled={deleting === (company._id || company.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Cancel
+                                </AlertDialogCancel>
                                 <AlertDialogAction
                                   className="bg-red-600 hover:bg-red-700"
                                   disabled={deleting === (company._id || company.id)}
-                                  onClick={() => handleDeleteCompany(company._id || company.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleDeleteCompany(company._id || company.id);
+                                  }}
                                 >
                                   {deleting === (company._id || company.id) ? (
                                     <>
@@ -915,7 +925,7 @@ export default function CompanyManagement() {
                               <SelectValue placeholder="Select plan" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Standard">Standard</SelectItem>
+                              <SelectItem value="Standard">Basic</SelectItem>
                               <SelectItem value="Premium">Premium</SelectItem>
                               <SelectItem value="Enterprise">Enterprise</SelectItem>
                             </SelectContent>

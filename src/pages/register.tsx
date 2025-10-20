@@ -1420,7 +1420,7 @@ export default function Register() {
                             setError("");
                           }}
                           variant="outline"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-800 cursor-pointer"
+                          className="border-gray-600 text-gray-600 cursor-pointer"
                         >
                           Add More Routes
                         </Button>
@@ -1509,7 +1509,7 @@ export default function Register() {
                           setError("");
                         }}
                         variant="outline"
-                        className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800 cursor-pointer"
+                        className="flex-1 border-gray-600 text-gray-700 cursor-pointer"
                       >
                         Cancel
                       </Button>
