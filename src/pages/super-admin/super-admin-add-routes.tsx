@@ -57,12 +57,10 @@ export default function SuperAdminAddRoutes() {
         console.log('WebSocket connected for real-time routes');
       };
 
-      // In SuperAdminAddRoutes.tsx - Update the WebSocket message handler
       ws.current.onmessage = (event) => {
         const message = JSON.parse(event.data);
         console.log('📨 WebSocket message received in SuperAdminAddRoutes:', message);
 
-        // Handle new route notifications (from route creation)
         if (message.type === 'new_route_notification') {
           console.log('🎯 Processing new route notification:', message.notification);
 
@@ -73,7 +71,7 @@ export default function SuperAdminAddRoutes() {
             endLocation: message.notification.data.end_location,
             landmarkStart: message.notification.data.landmark_details_start || '',
             landmarkEnd: message.notification.data.landmark_details_end || '',
-            hasGeoJSON: false // New routes won't have GeoJSON initially
+            hasGeoJSON: false
           };
 
           console.log('➕ Adding new route to table:', newRoute);
@@ -88,7 +86,6 @@ export default function SuperAdminAddRoutes() {
           });
 
         }
-        // Handle route updates (from your existing code)
         else if (message.type === 'updated_route') {
           console.log('🔄 Processing route update:', message.route);
 
@@ -99,7 +96,7 @@ export default function SuperAdminAddRoutes() {
             endLocation: message.route.end_location,
             landmarkStart: message.route.landmark_details_start || '',
             landmarkEnd: message.route.landmark_details_end || '',
-            hasGeoJSON: false // You might want to preserve this from existing data
+            hasGeoJSON: !!message.route.route_geojson
           };
 
           setRoutes(prev => {
@@ -114,12 +111,10 @@ export default function SuperAdminAddRoutes() {
           });
 
         }
-        // Handle route deletions (from your existing code)
         else if (message.type === 'deleted_route') {
           console.log('🗑️ Processing route deletion:', message.route_id);
           setRoutes(prev => prev.filter(r => r.id !== message.route_id));
         }
-        // Handle the old format (backward compatibility)
         else if (message.type === 'new_route') {
           console.log('📨 Processing legacy new_route message:', message.route);
 
@@ -197,7 +192,6 @@ export default function SuperAdminAddRoutes() {
     fetchRoutes();
   }, []);
 
-  // Filter routes based on search
   const filteredRoutes = routes.filter((route) => {
     const matchesSearch =
       route.company.toLowerCase().includes(searchValue.toLowerCase()) ||
@@ -209,12 +203,10 @@ export default function SuperAdminAddRoutes() {
     return matchesSearch;
   });
 
-  // Handle file upload
   const handleFiles = (files: FileList) => {
     setError("");
     const fileArray = Array.from(files);
 
-    // Validate file types
     const validFiles = fileArray.filter(file => {
       const validTypes = ['.geojson', '.json'];
       const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -229,7 +221,6 @@ export default function SuperAdminAddRoutes() {
     setUploadedFiles(validFiles);
   };
 
-  // Handle drag events
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -240,7 +231,6 @@ export default function SuperAdminAddRoutes() {
     }
   };
 
-  // Handle drop
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -250,7 +240,6 @@ export default function SuperAdminAddRoutes() {
     }
   };
 
-  // Handle file input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (e.target.files && e.target.files[0]) {
@@ -258,14 +247,12 @@ export default function SuperAdminAddRoutes() {
     }
   };
 
-  // Remove file
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
     setError("");
     setSuccess("");
   };
 
-  // Submit form - Upload GeoJSON to specific route
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -286,7 +273,6 @@ export default function SuperAdminAddRoutes() {
     try {
       const token = localStorage.getItem("token");
 
-      // Upload each file to the selected route
       for (const file of uploadedFiles) {
         const formData = new FormData();
         formData.append("route_geojson", file);
@@ -311,35 +297,23 @@ export default function SuperAdminAddRoutes() {
         }
       }
 
+      // Update the selected route and routes list immediately
+      setRoutes(prev => prev.map(r => 
+        r.id === selectedRoute.id 
+          ? { ...r, hasGeoJSON: true }
+          : r
+      ));
+
+      // Update selected route for the modal
+      setSelectedRoute(prev => prev ? { ...prev, hasGeoJSON: true } : null);
+
       setSuccess(`Successfully uploaded ${uploadedFiles.length} GeoJSON file(s) to route!`);
       setUploadedFiles([]);
 
-      // Refresh routes after successful upload to get updated data
-      const fetchRoutes = async () => {
-        try {
-          const res = await fetch(`${apiBaseURL}/declared_routes/all/routes`, {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-          });
-          if (!res.ok) throw new Error("Failed to fetch routes");
-          const data = await res.json();
-          const formattedRoutes = data.map((route: any) => ({
-            id: route._id,
-            company: route.company_name || "Unknown Company",
-            startLocation: route.start_location,
-            endLocation: route.end_location,
-            landmarkStart: route.landmark_details_start,
-            landmarkEnd: route.landmark_details_end,
-            hasGeoJSON: !!route.route_geojson,
-          }));
-          setRoutes(formattedRoutes);
-        } catch (error) {
-          console.error("Error fetching routes:", error);
-        }
-      };
-
-      await fetchRoutes();
+      // Close modal after a short delay to show success message
+      setTimeout(() => {
+        setIsUploadModalOpen(false);
+      }, 1500);
 
     } catch (err) {
       console.error("Upload error:", err);
