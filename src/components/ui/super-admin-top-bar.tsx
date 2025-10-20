@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { Menu, 
-         ChevronsUpDown 
+         Settings,
 } from "lucide-react";
 import { useSidebarContext } from "./side-bar";
 import { ModeToggle } from "../mode-toggle";
@@ -82,7 +82,7 @@ const UserProfileDropdown: React.FC<{ signOut: () => void; user: any }> = ({ sig
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div className="flex items-center pr-2 rounded-lg transition-colors cursor-pointer">
-          <ChevronsUpDown className="w-5 h-5 text-primary" />
+          <Settings className="w-5 h-5 text-primary" />
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -95,10 +95,12 @@ const UserProfileDropdown: React.FC<{ signOut: () => void; user: any }> = ({ sig
           </div>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>View Profile</DropdownMenuItem>
-        <DropdownMenuItem>Settings</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut() }>Sign Out</DropdownMenuItem>
+        <DropdownMenuItem 
+                  onClick={() => signOut()} 
+                  className="bg-red-500 hover:bg-red-600 text-white focus:bg-red-600 focus:text-white cursor-pointer"
+                >
+                  Sign Out
+                </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

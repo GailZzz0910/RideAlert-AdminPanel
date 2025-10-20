@@ -17,7 +17,8 @@ import {
   CheckCircle,
   Clock,
   Car,
-  User
+  User,
+  Loader2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -38,6 +39,8 @@ export default function FleetAdminIOTManagement() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const { user, token } = useUser();
 
@@ -148,6 +151,7 @@ export default function FleetAdminIOTManagement() {
         ws.onopen = () => {
           console.log("Connected to IoT WebSocket");
           reconnectAttempts = 0;
+          setLoading(false);
         };
 
         ws.onmessage = (event) => {
@@ -185,9 +189,11 @@ export default function FleetAdminIOTManagement() {
               // Map vehicle information to devices
               const devicesWithVehicleInfo = mapDevicesWithVehicleInfo(mapped, vehicles);
               setDevices(devicesWithVehicleInfo);
+              setLoading(false);
             }
           } catch (err) {
             console.error("Error parsing WebSocket message:", err);
+            setLoading(false);
           }
         };
 
@@ -255,6 +261,7 @@ export default function FleetAdminIOTManagement() {
       return;
     }
 
+    setSaving(true);
     try {
       // Find the selected vehicle object
       const selectedVehicle = editForm.vehicleId === "unassigned" ? null : vehicles.find(v => v.id === editForm.vehicleId);
@@ -380,6 +387,8 @@ export default function FleetAdminIOTManagement() {
       console.error("=== DEBUG: Overall error ===");
       console.error(err);
       alert(`Error updating device: ${err.message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -465,9 +474,82 @@ export default function FleetAdminIOTManagement() {
     return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
   };
 
+  // Skeleton components
+  const SummaryCardSkeleton = () => (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+          <div>
+            <div className="w-16 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+            <div className="w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const TableSkeleton = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Cpu className="w-5 h-5" />
+          <div className="w-32 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Device Name</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Model</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Vehicle Assignment</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Driver</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Update</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(6)].map((_, index) => (
+                <tr key={index} className="border-b border-border">
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-28 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-32 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-16 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <ScrollArea className="h-screen w-full">
-      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
+      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 pt-8 mb-10">
 
         {/* Page Header */}
         <div className="flex items-center justify-between">
@@ -479,67 +561,78 @@ export default function FleetAdminIOTManagement() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                  <Cpu className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Devices</p>
-                  <p className="text-2xl font-bold text-foreground">{devices.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {loading ? (
+            <>
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+            </>
+          ) : (
+            <>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                      <Cpu className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Devices</p>
+                      <p className="text-2xl font-bold text-foreground">{devices.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Online</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {devices.filter(d => d.status === "online").length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Online</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {devices.filter(d => d.status === "online").length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
-                  <Car className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Assigned</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {devices.filter(d => d.vehicleId !== null).length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                      <Car className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Assigned</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {devices.filter(d => d.vehicleId !== null).length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-gray-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Unassigned</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {devices.filter(d => d.vehicleId === null).length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Unassigned</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {devices.filter(d => d.vehicleId === null).length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Controls */}
@@ -575,14 +668,17 @@ export default function FleetAdminIOTManagement() {
         </div>
 
         {/* IOT Devices Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Cpu className="w-5 h-5" />
-              IoT Devices ({filteredDevices.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {loading ? (
+          <TableSkeleton />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Cpu className="w-5 h-5" />
+                IoT Devices ({filteredDevices.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -680,6 +776,7 @@ export default function FleetAdminIOTManagement() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Device Details Dialog */}
         <Dialog
@@ -901,14 +998,25 @@ export default function FleetAdminIOTManagement() {
                         <Button
                           className="flex-1 h-11"
                           onClick={handleSaveEdit}
+                          disabled={saving}
                         >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Save Changes
+                          {saving ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving Changes...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Save Changes
+                            </>
+                          )}
                         </Button>
                         <Button
                           variant="outline"
                           className="flex-1 h-11"
                           onClick={handleCancelEdit}
+                          disabled={saving}
                         >
                           Cancel
                         </Button>

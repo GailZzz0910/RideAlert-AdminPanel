@@ -1410,7 +1410,7 @@ export default function Register() {
                       <div className="flex gap-3 w-full">
                         <Button
                           onClick={() => window.location.href = '/'}
-                          className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                          className="flex-1 bg-blue-700 hover:bg-blue-500 text-white cursor-pointer"
                         >
                           Go to Login Page
                         </Button>

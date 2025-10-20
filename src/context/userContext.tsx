@@ -8,6 +8,7 @@ interface FleetInfo {
 
 interface User {
   id: string;
+  email?: string;
   company_name: string;
   company_code: string;
   contact_info?: Array<any>;
@@ -26,6 +27,7 @@ interface UserContextType {
   token: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   signOut: () => void;
+  updateUserEmail: (email: string) => void;
   loading: boolean;
   error: string | null;
 }
@@ -116,8 +118,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (storedToken && storedUser) {
       try {
+        const parsedUser = JSON.parse(storedUser);
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        setUser(parsedUser);
 
         // Validate tokens on app startup
         validateAndRefreshTokens();
@@ -151,11 +154,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
+      // Add email to the user object since it's not included in the API response
+      const userWithEmail = { ...fleet, email };
+
       setToken(access_token);
-      setUser(fleet);
+      setUser(userWithEmail);
       localStorage.setItem("token", access_token);
       localStorage.setItem("refresh_token", refresh_token);
-      localStorage.setItem("user", JSON.stringify(fleet));
+      localStorage.setItem("user", JSON.stringify(userWithEmail));
       return true;
     } catch (err: any) {
       const status = err.response?.status;
@@ -174,8 +180,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserEmail = useCallback((email: string) => {
+    if (user) {
+      const updatedUser = { ...user, email };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
+  }, [user]);
+
   return (
-    <UserContext.Provider value={{ user, token, login, signOut, loading, error }}>
+    <UserContext.Provider value={{ user, token, login, signOut, updateUserEmail, loading, error }}>
       {children}
     </UserContext.Provider>
   );

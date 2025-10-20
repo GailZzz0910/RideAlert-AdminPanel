@@ -215,7 +215,7 @@ export default function AssignRoute() {
   return (
     <ScrollArea className="h-screen w-full">
       <div className="bg-black/90 backdrop-blur-xl min-h-screen">
-        <div className="flex flex-col min-h-screen w-full max-w-6xl mx-auto gap-6 px-7 text-card-foreground p-5">
+        <div className="flex flex-col min-h-screen w-full max-w-6xl mx-auto gap-6 px-7 text-card-foreground p-5 pt-8">
           {/* Header Section */}
           <div className="text-center mb-6">
             <div className="flex items-center justify-center gap-3 mb-4">

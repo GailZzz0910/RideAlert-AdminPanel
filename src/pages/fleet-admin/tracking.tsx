@@ -6,6 +6,7 @@ import { useVehicleWebSocket } from "@/components/useVehicleWebsocket";
 import { useUser } from "@/context/userContext";
 import { wsBaseURL } from "@/utils/api";
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { Loader2 } from "lucide-react";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -35,12 +36,20 @@ type ViewMode = "all" | "specific";
 export default function TrackingPage() {
   const [activeView, setActiveView] = useState<ViewMode>("all");
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [loading, setLoading] = useState(true);
   const { user } = useUser();
   
   const fleetId = user?.id;
   const liveVehicles = useVehicleWebSocket(
     `${wsBaseURL}/ws/vehicles/all/${fleetId}`
   );
+
+  // Set loading to false when vehicles are received
+  useEffect(() => {
+    if (liveVehicles && liveVehicles.length >= 0) {
+      setLoading(false);
+    }
+  }, [liveVehicles]);
 
   // Get user's current location
   useEffect(() => {
@@ -99,9 +108,43 @@ export default function TrackingPage() {
     ? liveVehicles.filter(v => v.status === "available")
     : liveVehicles;
 
+  // Skeleton components
+  const VehicleCardSkeleton = () => (
+    <div className="flex-shrink-0 min-w-[280px] max-w-[350px]">
+      <Card>
+        <CardContent className="p-4">
+          <div className="space-y-3 animate-pulse">
+            <div className="flex items-center justify-between">
+              <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+            <div className="w-32 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="flex justify-between">
+              <div className="w-20 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div className="w-16 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+            <div className="flex justify-between">
+              <div className="w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div className="w-20 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const MapSkeleton = () => (
+    <div className="h-[calc(100vh-300px)] w-full rounded-lg overflow-hidden border bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+        <p className="text-muted-foreground">Loading map...</p>
+      </div>
+    </div>
+  );
+
   return (
     <ScrollArea className="h-screen w-full">
-      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
+      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 pt-8 mb-10">
         
         {/* Toggle Navigation - Centered and Large Width */}
         <div className="flex justify-center w-full">
@@ -155,7 +198,13 @@ export default function TrackingPage() {
         {/* Vehicle Display */}
         {activeView === "all" ? (
           /* All Vehicles View - Show Vehicle Cards */
-          filteredVehicles.length === 0 ? (
+          loading ? (
+            <div className="flex flex-wrap gap-4 md:gap-6 mb-10">
+              {[...Array(6)].map((_, index) => (
+                <VehicleCardSkeleton key={index} />
+              ))}
+            </div>
+          ) : filteredVehicles.length === 0 ? (
             <div className="flex items-center justify-center h-40 text-muted-foreground text-lg font-medium">
               No Vehicles Found
             </div>
@@ -182,35 +231,39 @@ export default function TrackingPage() {
           )
         ) : (
           /* Available Vehicles Map View */
-          <div className="h-[calc(100vh-300px)] w-full rounded-lg overflow-hidden border">
-            <MapContainer
-              {...({ center: center as any, zoom: 13, style: { height: '100%', width: '100%' }, zoomControl: true } as any)}
-            >
-              <TileLayer
-                {...({ url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' } as any)}
-              />
-              
-              {/* Add markers for available vehicles */}
-              {filteredVehicles.map((vehicle) => (
-                vehicle.location && (
-                  <Marker
-                    key={vehicle.id}
-                    {...({ position: [vehicle.location.latitude, vehicle.location.longitude], icon: vehicleIcon } as any)}
-                  >
-                    <Popup>
-                      <div className="p-2">
-                        <h3 className="font-bold">{vehicle.route}</h3>
-                        <p className="text-sm">Driver: {vehicle.driverName}</p>
-                        <p className="text-sm">Status: {getVehicleStatusFromData(vehicle.status)}</p>
-                        <p className="text-sm">Available Seats: {vehicle.available_seats}</p>
-                        <p className="text-sm">Plate: {vehicle.plate}</p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
-              ))}
-            </MapContainer>
-          </div>
+          loading ? (
+            <MapSkeleton />
+          ) : (
+            <div className="h-[calc(100vh-300px)] w-full rounded-lg overflow-hidden border">
+              <MapContainer
+                {...({ center: center as any, zoom: 13, style: { height: '100%', width: '100%' }, zoomControl: true } as any)}
+              >
+                <TileLayer
+                  {...({ url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' } as any)}
+                />
+                
+                {/* Add markers for available vehicles */}
+                {filteredVehicles.map((vehicle) => (
+                  vehicle.location && (
+                    <Marker
+                      key={vehicle.id}
+                      {...({ position: [vehicle.location.latitude, vehicle.location.longitude], icon: vehicleIcon } as any)}
+                    >
+                      <Popup>
+                        <div className="p-2">
+                          <h3 className="font-bold">{vehicle.route}</h3>
+                          <p className="text-sm">Driver: {vehicle.driverName}</p>
+                          <p className="text-sm">Status: {getVehicleStatusFromData(vehicle.status)}</p>
+                          <p className="text-sm">Available Seats: {vehicle.available_seats}</p>
+                          <p className="text-sm">Plate: {vehicle.plate}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )
+                ))}
+              </MapContainer>
+            </div>
+          )
         )}
       </div>
     </ScrollArea>

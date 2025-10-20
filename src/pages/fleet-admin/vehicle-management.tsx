@@ -12,7 +12,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useVehicleWebSocket } from "@/components/useVehicleWebsocket";
-import { Search, ListFilter, ChevronDown, Plus, MapPin, Route, X } from "lucide-react";
+import { Search, ListFilter, ChevronDown, Plus, MapPin, Route, X, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/userContext";
 import { wsBaseURL, apiBaseURL } from "@/utils/api";
@@ -35,6 +35,36 @@ interface Route {
   landmarkStart: string;
   landmarkEnd: string;
 }
+
+// Skeleton component for loading vehicle list
+const VehicleListSkeleton = () => (
+  <div className="space-y-4">
+    {[...Array(6)].map((_, i) => (
+      <div key={i} className="animate-pulse">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-10 h-10 bg-muted rounded-full"></div>
+                <div>
+                  <div className="h-4 bg-muted rounded w-32 mb-2"></div>
+                  <div className="h-3 bg-muted/60 rounded w-48"></div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-6 bg-muted rounded w-20"></div>
+                <div className="flex gap-2">
+                  <div className="h-8 w-20 bg-muted rounded"></div>
+                  <div className="h-8 w-8 bg-muted rounded"></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    ))}
+  </div>
+);
 
 export default function VehicleManagement() {
   const { user } = useUser();  // 👈 get logged in fleet
@@ -48,6 +78,14 @@ export default function VehicleManagement() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editVehicle, setEditVehicle] = useState<VehicleListItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  // Loading timer
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredVehicles = liveVehicles.filter((v) => {
     const matchesType =
@@ -65,10 +103,20 @@ export default function VehicleManagement() {
   };
 
   // Handler to save edit (stub, you can implement update logic)
-  const handleEditSave = (e: React.FormEvent) => {
+  const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: update vehicle in your state/store
-    setEditDialogOpen(false);
+    if (updating) return; // Prevent multiple submissions
+    
+    try {
+      setUpdating(true);
+      // TODO: update vehicle in your state/store
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      setEditDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to update vehicle:', error);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   // Navigate to assign route page with vehicle data
@@ -81,7 +129,7 @@ export default function VehicleManagement() {
 
   return (
     <ScrollArea className="h-screen w-full">
-      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
+      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 pt-8 mb-10">
         {/* Filter Section */}
         <div className="flex items-center justify-between gap-4 rounded-lg mb-4">
           {/* Left side - Search only */}
@@ -131,7 +179,9 @@ export default function VehicleManagement() {
           </div>
         </div>
         {/* Vehicle Table */}
-        {filteredVehicles.length === 0 ? (
+        {loading ? (
+          <VehicleListSkeleton />
+        ) : filteredVehicles.length === 0 ? (
           <div className="flex items-center justify-center h-40 text-muted-foreground text-lg font-medium">No Vehicles</div>
         ) : (
           <VehicleListView
@@ -172,12 +222,26 @@ export default function VehicleManagement() {
               <DialogFooter>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold"
+                  disabled={updating}
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold disabled:opacity-50 flex items-center gap-2"
                 >
-                  Save
+                  {updating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
                 </button>
                 <DialogClose asChild>
-                  <button type="button" className="px-4 py-2 rounded-lg bg-muted text-foreground font-semibold">Cancel</button>
+                  <button 
+                    type="button" 
+                    disabled={updating}
+                    className="px-4 py-2 rounded-lg bg-muted text-foreground font-semibold disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
                 </DialogClose>
               </DialogFooter>
             </form>
