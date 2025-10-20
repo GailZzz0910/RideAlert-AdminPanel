@@ -170,7 +170,7 @@ export default function SuperAdminAddRoutes() {
     const fetchRoutes = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`${apiBaseURL}/declared_routes/all/routes`, {
+        const res = await fetch(`${apiBaseURL}/declared_routes/superadmin/all/routes`, {
           headers: {
             "Authorization": `Bearer ${token}`,
           },
