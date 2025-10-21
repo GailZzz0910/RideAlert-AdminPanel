@@ -424,7 +424,7 @@ export default function DashboardPage() {
                     <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200/50 dark:border-purple-800/50">
                       <div className="flex items-center gap-3 mb-1">
                         <Hash className="w-4 h-4 text-purple-600" />
-                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Fleet ID</span>
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Company Code</span>
                       </div>
                       <p className="font-bold text-slate-900 dark:text-white font-mono">{user?.company_code || 'FL001'}</p>
                     </div>
