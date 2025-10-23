@@ -24,7 +24,8 @@ import {
   Edit,
   CheckCircle,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from "lucide-react";
 
 // Update the Route interface to match backend response
@@ -60,6 +61,8 @@ export default function AddRoutes() {
   const [fetchLoading, setFetchLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
 
   const [newRoute, setNewRoute] = useState({
     id: "",
@@ -177,38 +180,49 @@ export default function AddRoutes() {
   };
 
   // Add route to pending list in dialog
-  const handleAddRouteToPending = () => {
+  const handleAddRouteToPending = async () => {
     if (!newRoute.start_location.trim() || !newRoute.end_location.trim()) {
       setRouteError("Start and end locations are required");
       return;
     }
 
-    const routeToAdd: Route = {
-      ...newRoute,
-      id: Date.now().toString(),
-      company_id: user?.id || "",
-      company_name: user?.company_name || "Your Company",
-      route_geojson: null,
-      status: "draft",
-      createdAt: new Date().toISOString(),
-      startLocation: newRoute.start_location,
-      endLocation: newRoute.end_location,
-      landmarkStart: newRoute.landmark_details_start,
-      landmarkEnd: newRoute.landmark_details_end,
-    };
+    setAddLoading(true);
+    try {
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-    setPendingRoutes(prev => [...prev, routeToAdd]);
+      const routeToAdd: Route = {
+        ...newRoute,
+        id: Date.now().toString(),
+        company_id: user?.id || "",
+        company_name: user?.company_name || "Your Company",
+        route_geojson: null,
+        status: "draft",
+        createdAt: new Date().toISOString(),
+        startLocation: newRoute.start_location,
+        endLocation: newRoute.end_location,
+        landmarkStart: newRoute.landmark_details_start,
+        landmarkEnd: newRoute.landmark_details_end,
+      };
 
-    // Reset form for next route
-    setNewRoute({
-      id: "",
-      start_location: "",
-      end_location: "",
-      landmark_details_start: "",
-      landmark_details_end: "",
-      status: "draft",
-    });
-    setRouteError(null);
+      setPendingRoutes(prev => [...prev, routeToAdd]);
+
+      // Reset form for next route
+      setNewRoute({
+        id: "",
+        start_location: "",
+        end_location: "",
+        landmark_details_start: "",
+        landmark_details_end: "",
+        status: "draft",
+      });
+      setRouteError(null);
+    } catch (error) {
+      console.error("Error adding route to pending:", error);
+      setRouteError("Failed to add route to list");
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   // Remove route from pending list
@@ -335,7 +349,11 @@ export default function AddRoutes() {
 
   // Handle save edit
   const handleSaveEdit = async () => {
+    setEditLoading(true);
     try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       // Optional: Update backend here if you have an update endpoint
       // const response = await fetch(`${apiBaseURL}/declared_routes/${editForm.id}`, {
       //   method: "PUT",
@@ -353,9 +371,12 @@ export default function AddRoutes() {
       );
       setSelectedRoute({ ...editForm });
       setIsEditMode(false);
+      alert("Route updated successfully!");
     } catch (error) {
       console.error("Error updating route:", error);
       setRouteError("Failed to update route");
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -421,9 +442,80 @@ export default function AddRoutes() {
     });
   };
 
+  // Skeleton components
+  const SummaryCardSkeleton = () => (
+    <Card className="flex-1 min-w-[250px]">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+          <div>
+            <div className="w-20 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+            <div className="w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const TableSkeleton = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Route className="w-5 h-5" />
+          <div className="w-32 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Location</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Location</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Landmark</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Landmark</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(5)].map((_, index) => (
+                <tr key={index} className="border-b border-border">
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="w-16 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <ScrollArea className="h-screen w-full">
-      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
+      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 pt-8 mb-10">
 
         <h1 className="text-3xl font-bold text-foreground">Optimize Fleet Coverage</h1>
         <p className="text-muted-foreground">Efficiently add and manage multiple routes for your fleet company.</p>
@@ -454,53 +546,61 @@ export default function AddRoutes() {
         )}
 
         {/* Summary Stats */}
-        <div className="flex flex-wrap gap-4">
-          <Card className="flex-1 min-w-[250px]">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                  <Route className="w-5 h-5 text-blue-600" />
+        {fetchLoading ? (
+          <div className="flex flex-wrap gap-4">
+            <SummaryCardSkeleton />
+            <SummaryCardSkeleton />
+            <SummaryCardSkeleton />
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            <Card className="flex-1 min-w-[250px]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                    <Route className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Routes</p>
+                    <p className="text-2xl font-bold text-foreground">{savedRoutes.length}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Routes</p>
-                  <p className="text-2xl font-bold text-foreground">{savedRoutes.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="flex-1 min-w-[250px]">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-orange-600" />
+            <Card className="flex-1 min-w-[250px]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Locations</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {new Set([...savedRoutes.map(r => r.startLocation), ...savedRoutes.map(r => r.endLocation)]).size}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Locations</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {new Set([...savedRoutes.map(r => r.startLocation), ...savedRoutes.map(r => r.endLocation)]).size}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="flex-1 min-w-[250px]">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-purple-600" />
+            <Card className="flex-1 min-w-[250px]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Recent Routes</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {savedRoutes.filter(r => r.createdAt && new Date(r.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Recent Routes</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {savedRoutes.filter(r => r.createdAt && new Date(r.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Controls */}
         <div className="flex items-center gap-4">
@@ -538,26 +638,29 @@ export default function AddRoutes() {
         </div>
 
         {/* Routes Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Route className="w-5 h-5" />
-              Routes ({filteredRoutes.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Location</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Location</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Landmark</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Landmark</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+        {fetchLoading ? (
+          <TableSkeleton />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Route className="w-5 h-5" />
+                Routes ({filteredRoutes.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Location</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Location</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Landmark</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Landmark</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                   {filteredRoutes.map((route) => (
                     <tr
                       key={route.id}
@@ -603,8 +706,13 @@ export default function AddRoutes() {
                               e.stopPropagation();
                               handleEditRoute(route);
                             }}
+                            disabled={editLoading}
                           >
-                            <Edit className="w-4 h-4" />
+                            {editLoading ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Edit className="w-4 h-4" />
+                            )}
                           </Button>
 
                           <Button
@@ -664,6 +772,7 @@ export default function AddRoutes() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Add Route Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -726,10 +835,20 @@ export default function AddRoutes() {
                 <div className="flex justify-end mt-4">
                   <Button
                     onClick={handleAddRouteToPending}
+                    disabled={addLoading}
                     className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add to List
+                    {addLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add to List
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -921,8 +1040,16 @@ export default function AddRoutes() {
                         <Button
                           className="flex-1 cursor-pointer"
                           onClick={handleSaveEdit}
+                          disabled={editLoading}
                         >
-                          Save Changes
+                          {editLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save Changes'
+                          )}
                         </Button>
                         <Button
                           variant="outline"

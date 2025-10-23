@@ -30,6 +30,7 @@ import {
   Eye,
   Calendar,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -63,16 +64,30 @@ export default function SuperAdminFleetManagement() {
   const [fleets, setFleets] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const { token } = useUser();
 
   // Connect to the websocket
   useEffect(() => {
     const ws = new WebSocket(`${wsBaseURL}/fleets/ws/all`);
 
-    ws.onopen = () => console.log("Connected to fleets websocket");
+    ws.onopen = () => {
+      console.log("Connected to fleets websocket");
+      setLoading(false);
+    };
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.fleets) setFleets(data.fleets);
+      if (data.fleets) {
+        setFleets(data.fleets);
+        setLoading(false);
+      }
+    };
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      setLoading(false);
     };
     ws.onclose = () => console.log("Disconnected from fleets websocket");
 
@@ -179,6 +194,7 @@ export default function SuperAdminFleetManagement() {
   const handleApprove = async (fleetId: string) => {
     if (!fleetId) return;
 
+    setApproving(fleetId);
     try {
       const response = await fetch(`${apiBaseURL}/fleets/${fleetId}/approve`, {
         method: "PATCH",
@@ -204,6 +220,8 @@ export default function SuperAdminFleetManagement() {
     } catch (err) {
       console.error(err);
       alert("Error approving fleet");
+    } finally {
+      setApproving(null);
     }
   };
 
@@ -211,8 +229,8 @@ export default function SuperAdminFleetManagement() {
   const handleReject = async (fleetId: string) => {
     if (!fleetId) return;
 
+    setRejecting(fleetId);
     try {
-
       const response = await fetch(`${apiBaseURL}/fleets/${fleetId}/reject`, {
         method: "PATCH",
         headers: {
@@ -236,6 +254,8 @@ export default function SuperAdminFleetManagement() {
     } catch (err) {
       console.error(err);
       alert("Error rejecting fleet");
+    } finally {
+      setRejecting(null);
     }
   };
 
@@ -254,43 +274,54 @@ export default function SuperAdminFleetManagement() {
     setIsEditMode(true);
   };
 
-  const handleSaveEdit = () => {
-    // Update the fleet in local state
-    setFleets(prev =>
-      prev.map(fleet =>
-        fleet.id === selectedRegistration.id
-          ? {
-            ...fleet,
-            company_name: editForm.companyName,
-            company_code: editForm.companyCode,
-            contact_info: [{
-              name: editForm.contactInfo,
-              email: editForm.email,
-              phone: editForm.phone,
-              address: editForm.address
-            }],
-            subscription_plan: editForm.selectedPlan,
-            max_vehicles: editForm.maxVehicles,
-          }
-          : fleet
-      )
-    );
+  const handleSaveEdit = async () => {
+    setSaving(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Update selectedRegistration to reflect changes
-    setSelectedRegistration({
-      ...selectedRegistration,
-      companyName: editForm.companyName,
-      companyCode: editForm.companyCode,
-      contactInfo: editForm.contactInfo,
-      email: editForm.email,
-      phone: editForm.phone,
-      address: editForm.address,
-      selectedPlan: editForm.selectedPlan,
-      maxVehicles: editForm.maxVehicles,
-    });
+      // Update the fleet in local state
+      setFleets(prev =>
+        prev.map(fleet =>
+          fleet.id === selectedRegistration.id
+            ? {
+              ...fleet,
+              company_name: editForm.companyName,
+              company_code: editForm.companyCode,
+              contact_info: [{
+                name: editForm.contactInfo,
+                email: editForm.email,
+                phone: editForm.phone,
+                address: editForm.address
+              }],
+              subscription_plan: editForm.selectedPlan,
+              max_vehicles: editForm.maxVehicles,
+            }
+            : fleet
+        )
+      );
 
-    setIsEditMode(false);
-    alert("Fleet updated successfully!");
+      // Update selectedRegistration to reflect changes
+      setSelectedRegistration({
+        ...selectedRegistration,
+        companyName: editForm.companyName,
+        companyCode: editForm.companyCode,
+        contactInfo: editForm.contactInfo,
+        email: editForm.email,
+        phone: editForm.phone,
+        address: editForm.address,
+        selectedPlan: editForm.selectedPlan,
+        maxVehicles: editForm.maxVehicles,
+      });
+
+      setIsEditMode(false);
+      alert("Fleet updated successfully!");
+    } catch (error) {
+      console.error("Error updating fleet:", error);
+      alert("Failed to update fleet. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -325,78 +356,168 @@ export default function SuperAdminFleetManagement() {
     return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   };
 
+  // Skeleton components
+  const SummaryCardSkeleton = () => (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+          <div>
+            <div className="w-16 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+            <div className="w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const TableSkeleton = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Building className="w-5 h-5" />
+          <div className="w-40 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Company</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Contact</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Plan</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Business Permit</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Submitted</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(5)].map((_, index) => (
+                <tr key={index} className="border-b border-border">
+                  <td className="py-4 px-4">
+                    <div className="flex flex-col gap-1">
+                      <div className="w-32 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="w-20 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex flex-col gap-1">
+                      <div className="w-28 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="w-36 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-20 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-18 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-20 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex gap-2">
+                      <div className="w-16 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="w-16 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <ScrollArea className="h-screen w-full">
-      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
+      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 pt-8 mb-10">
 
         <h1 className="text-3xl font-bold text-foreground">Fleet Registration Requests</h1>
         <p className="text-muted-foreground">Manage fleet registrations. Accept or reject requests as needed.</p>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {pendingCount}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {loading ? (
+            <>
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+            </>
+          ) : (
+            <>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pending</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {pendingCount}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                  <Check className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Approved</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {approvedCount}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                      <Check className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Approved</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {approvedCount}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
-                  <X className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Rejected</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {rejectedCount}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                      <X className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Rejected</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {rejectedCount}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                  <Building className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Pending Request</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {pendingCount}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                      <Building className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Pending Request</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {pendingCount}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
 
@@ -431,14 +552,17 @@ export default function SuperAdminFleetManagement() {
         </div>
 
         {/* Registrations Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building className="w-5 h-5" />
-              Registration Requests
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {loading ? (
+          <TableSkeleton />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="w-5 h-5" />
+                Registration Requests
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -519,25 +643,40 @@ export default function SuperAdminFleetManagement() {
                               <>
                                 <Button
                                   size="sm"
+                                  disabled={approving === registration.id || rejecting === registration.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleApprove(registration.id);
                                   }}
-                                  className="bg-green-600 cursor-pointer"
+                                  className="bg-green-600 cursor-pointer disabled:opacity-50 flex items-center gap-1"
                                 >
-
-                                  <p className="text-sm text-white">Accept</p>
+                                  {approving === registration.id ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      <span className="text-sm text-white">Approving...</span>
+                                    </>
+                                  ) : (
+                                    <p className="text-sm text-white">Accept</p>
+                                  )}
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="destructive"
-                                  className="cursor-pointer"
+                                  disabled={approving === registration.id || rejecting === registration.id}
+                                  className="cursor-pointer disabled:opacity-50 flex items-center gap-1"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleReject(registration.id);
                                   }}
                                 >
-                                  <p className="text-sm text-white">Reject</p>
+                                  {rejecting === registration.id ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      <span className="text-sm text-white">Rejecting...</span>
+                                    </>
+                                  ) : (
+                                    <p className="text-sm text-white">Reject</p>
+                                  )}
                                 </Button>
                               </>
                             )}
@@ -563,6 +702,7 @@ export default function SuperAdminFleetManagement() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Fleet Registration Details Dialog */}
         <Dialog
@@ -783,15 +923,24 @@ export default function SuperAdminFleetManagement() {
                     {isEditMode ? (
                       <>
                         <Button
-                          className="flex-1 cursor-pointer"
+                          className="flex-1 cursor-pointer disabled:opacity-50"
                           onClick={handleSaveEdit}
+                          disabled={saving}
                         >
-                          Save Changes
+                          {saving ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving Changes...
+                            </>
+                          ) : (
+                            'Save Changes'
+                          )}
                         </Button>
                         <Button
                           variant="outline"
                           className="flex-1 cursor-pointer"
                           onClick={handleCancelEdit}
+                          disabled={saving}
                         >
                           Cancel
                         </Button>
@@ -803,18 +952,38 @@ export default function SuperAdminFleetManagement() {
                           <>
                             <Button
                               onClick={() => handleApprove(selectedRegistration.id)}
-                              className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                              disabled={approving === selectedRegistration.id || rejecting === selectedRegistration.id}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer disabled:opacity-50"
                             >
-                              <Check className="w-4 h-4 mr-2" />
-                              Approve Registration
+                              {approving === selectedRegistration.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Approving...
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4 mr-2" />
+                                  Approve Registration
+                                </>
+                              )}
                             </Button>
                             <Button
                               onClick={() => handleReject(selectedRegistration.id)}
+                              disabled={approving === selectedRegistration.id || rejecting === selectedRegistration.id}
                               variant="destructive"
-                              className="flex-1 cursor-pointer"
+                              className="flex-1 cursor-pointer disabled:opacity-50"
                             >
-                              <X className="w-4 h-4 mr-2" />
-                              Reject Registration
+                              {rejecting === selectedRegistration.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Rejecting...
+                                </>
+                              ) : (
+                                <>
+                                  <X className="w-4 h-4 mr-2" />
+                                  Reject Registration
+                                </>
+                              )}
                             </Button>
                           </>
                         )}

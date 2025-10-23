@@ -1,9 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-import { Menu, 
-         ChevronsUpDown 
-} from "lucide-react";
+import { Menu } from "lucide-react";
 import { useSidebarContext } from "./side-bar";
 import { ModeToggle } from "../mode-toggle";
 import {
@@ -34,8 +32,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <motion.header
       className={cn(
-        "bg-sidebar px-4 py-4 border-b",
-        "flex items-center justify-between shadow-sm h-[64px]",
+        "bg-sidebar px-6 py-4 border-b border-sidebar-border backdrop-blur-sm",
+        "flex items-center justify-between shadow-sm h-[64px] relative z-10",
         className
       )}
       layout
@@ -45,12 +43,12 @@ export const TopBar: React.FC<TopBarProps> = ({
       }}
     >
       {/* Left side - Menu button and title */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-4">
         <Button
           onClick={toggleSidebar}
           className={cn(
-            "p-2 rounded-lg transition-colors cursor-pointer",
-            "text-primary  xl:flex"
+            "p-2 rounded-lg transition-all duration-200 cursor-pointer hover:scale-105 hover:shadow-sm",
+            "text-sidebar-foreground hover:bg-sidebar-accent xl:flex"
           )}
           variant="ghost"
           size="icon"
@@ -59,16 +57,21 @@ export const TopBar: React.FC<TopBarProps> = ({
         </Button>
 
         <div className="flex flex-col">
-          <h1 className="text-lg font-semibold text-primary">{title}</h1>
+          <h1 className="text-lg font-semibold text-sidebar-foreground tracking-tight">{title}</h1>
         </div>
       </div>
 
       {/* Right side - User profile and notifications */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-2">
         {/* Notifications */}
-        <NotifDropdown />
+        <div className="hover:scale-105 transition-transform duration-200">
+          <NotifDropdown />
+        </div>
+        
         {/* Mode Toggle */}
-        <ModeToggle />
+        <div className="hover:scale-105 transition-transform duration-200">
+          <ModeToggle />
+        </div>
 
         {/* User Profile */}
         <UserProfileDropdown signOut={signOut} user={user} />
@@ -83,32 +86,35 @@ const UserProfileDropdown: React.FC<{ signOut: () => void; user: any }> = ({ sig
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className="flex items-center pr-2 rounded-lg transition-colors cursor-pointer">
-          {/* Only show avatar image if not super admin */}
-          {!isSuperAdmin && (
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face&auto=format"
-              alt="Profile"
-              className="w-9 h-9 rounded-full object-cover"
-            />
-          )}
-          <ChevronsUpDown className={`w-5 h-5 text-primary ${!isSuperAdmin ? 'ml-1' : ''}`} />
+        <div className="flex items-center p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-sidebar-accent hover:scale-105 hover:shadow-sm">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <span className="text-white text-sm font-medium">
+              {user?.company_name?.charAt(0) || 'U'}
+            </span>
+          </div>
         </div>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <div className="px-3 py-2">
-          <div className="font-medium text-sm text-primary">
-            {user?.company_name || "Guest"}
+      <DropdownMenuContent align="end" className="w-64 shadow-lg border-0 bg-background/95 backdrop-blur-sm">
+        <div className="px-4 py-3 border-b border-border/50">
+          <div className="font-medium text-sm text-foreground">
+            {user?.company_name || 'Fleet Manager'}
           </div>
-          <div className="text-xs text-gray-400">
-            {user?.role || "Unknown"}
+          <div className="text-xs text-muted-foreground truncate">
+            {user?.email || 'Please sign in again to see email'}
           </div>
+          {isSuperAdmin && (
+            <div className="text-xs text-primary font-medium mt-1">
+              Super Administrator
+            </div>
+          )}
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>View Profile</DropdownMenuItem>
-        <DropdownMenuItem>Settings</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut() }>Sign Out</DropdownMenuItem>
+        <DropdownMenuItem 
+          onClick={() => signOut()} 
+          className="bg-red-500 hover:bg-red-600 text-white focus:bg-red-600 focus:text-white cursor-pointer mx-2 my-1 rounded-md"
+        >
+          Sign Out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

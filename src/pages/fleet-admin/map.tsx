@@ -181,7 +181,7 @@
 
 // export default Map;
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { useLocation } from 'react-router-dom';
 import useVehicleLocationWS from '@/components/useVehicleLocationWS';
@@ -230,6 +230,140 @@ interface VehicleData {
     longitude: number;
   };
 }
+
+// Function to fetch route from OSRM (Open Source Routing Machine)
+const fetchRoute = async (start: [number, number], end: [number, number]): Promise<[number, number][]> => {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.code === 'Ok' && data.routes && data.routes[0]) {
+      // Convert GeoJSON coordinates [lng, lat] to Leaflet format [lat, lng]
+      const coordinates = data.routes[0].geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
+      return coordinates;
+    }
+    
+    // Fallback to straight line if routing fails
+    return [start, end];
+  } catch (error) {
+    console.error('Route fetching failed:', error);
+    // Fallback to straight line
+    return [start, end];
+  }
+};
+
+// Animated Vehicle Marker Component with Road Following
+const AnimatedVehicleMarker: React.FC<{
+  position: [number, number];
+  icon: L.Icon;
+  vehicleData: VehicleData | null;
+  onMarkerClick: (marker: any) => void;
+  onPopupClose: () => void;
+  getVehicleStatusFromData: (status: string | null | undefined) => string;
+  getStatusColorFromData: (status: string | null | undefined) => string;
+}> = ({ position, icon, vehicleData, onMarkerClick, onPopupClose, getVehicleStatusFromData, getStatusColorFromData }) => {
+  const markerRef = useRef<L.Marker | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const currentPosRef = useRef<[number, number]>(position);
+
+  useEffect(() => {
+    const marker = markerRef.current;
+    if (!marker) return;
+
+    const startPos = currentPosRef.current;
+    const endPos = position;
+
+    // If positions are the same, no animation needed
+    if (startPos[0] === endPos[0] && startPos[1] === endPos[1]) return;
+
+    console.log('New location received, fetching road route...');
+
+    // Fetch the road route and animate along it
+    (async () => {
+      const path = await fetchRoute(startPos, endPos);
+      console.log(`Route has ${path.length} points`);
+
+      const duration = 2000; // Animation duration in milliseconds (2 seconds)
+      const startTime = Date.now();
+      const totalPoints = path.length;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Calculate which segment of the path we're on
+        const targetIndex = Math.floor(progress * (totalPoints - 1));
+        const nextIndex = Math.min(targetIndex + 1, totalPoints - 1);
+        
+        // Calculate progress within the current segment
+        const segmentProgress = (progress * (totalPoints - 1)) - targetIndex;
+        
+        const currentPoint = path[targetIndex];
+        const nextPoint = path[nextIndex];
+
+        // Interpolate between current and next point on the path
+        const lat = currentPoint[0] + (nextPoint[0] - currentPoint[0]) * segmentProgress;
+        const lng = currentPoint[1] + (nextPoint[1] - currentPoint[1]) * segmentProgress;
+
+        const newLatLng = L.latLng(lat, lng);
+        marker.setLatLng(newLatLng);
+
+        if (progress < 1) {
+          animationRef.current = requestAnimationFrame(animate);
+        } else {
+          currentPosRef.current = endPos;
+          animationRef.current = null;
+          console.log('Animation complete');
+        }
+      };
+
+      // Cancel any ongoing animation
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+
+      // Start new animation
+      animationRef.current = requestAnimationFrame(animate);
+    })();
+
+    // Cleanup
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [position]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={currentPosRef.current}
+      icon={icon}
+      eventHandlers={{
+        click: () => onMarkerClick({
+          position: position,
+          title: vehicleData?.route || 'Vehicle'
+        })
+      }}
+    >
+      <Popup onClose={onPopupClose}>
+        <div className="p-2">
+          <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
+          <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>
+          <p className="text-sm">
+            Status:
+            <span className={`ml-1 px-2 py-0.5 rounded text-white text-xs font-medium ${getStatusColorFromData(vehicleData?.status || '')}`}>
+              {getVehicleStatusFromData(vehicleData?.status || '')}
+            </span>
+          </p>
+          <p className="text-sm">Available Seats: {vehicleData?.available_seats || 0}</p>
+          <p className="text-sm">Plate: {vehicleData?.plate || 'N/A'}</p>
+        </div>
+      </Popup>
+    </Marker>
+  );
+};
 
 const Map: React.FC = () => {
   const [selectedMarker, setSelectedMarker] = useState<any>(null);
@@ -344,36 +478,25 @@ const Map: React.FC = () => {
   return (
     <div style={{ height: 'calc(100vh - 64px)', width: '100%', position: 'relative', zIndex: 0 }}>
       <MapContainer
-        {...({
-          center: center as any,
-          zoom: 13,
-          style: { height: '100%', width: '100%', zIndex: 0 },
-          whenCreated: (map: any) => {
-            try {
-              map?.zoomControl?.setPosition && map.zoomControl.setPosition('topright');
-            } catch (e) {
-              // ignore
-            }
-          }
-        } as any)}
+        center={center}
+        zoom={13}
+        style={{ height: '100%', width: '100%', zIndex: 0 }}
+        zoomControl={true}
       >
-        {/* OpenStreetMap tiles */}
         <TileLayer
-          {...({ url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' } as any)}
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         {/* User location marker */}
         {userLocation && (
           <Marker
-            {...({
-              position: userLocation,
-              icon: userIcon,
-              eventHandlers: {
-                click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
-              }
-            } as any)}
+            position={userLocation}
+            icon={userIcon}
+            eventHandlers={{
+              click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
+            }}
           >
-            <Popup {...({ onClose: handlePopupClose } as any)}>
+            <Popup onClose={handlePopupClose}>
               <div className="p-2">
                 <h3 className="font-bold text-sm">Your Location</h3>
               </div>
@@ -381,35 +504,17 @@ const Map: React.FC = () => {
           </Marker>
         )}
 
-        {/* Vehicle location marker */}
+        {/* Vehicle location marker with smooth road-following animation */}
         {vehicleLocation && (
-          <Marker
-            {...({
-              position: vehicleLocation,
-              icon: vehicleIcon,
-              eventHandlers: {
-                click: () => handleMarkerClick({
-                  position: vehicleLocation,
-                  title: vehicleData?.route || 'Vehicle'
-                })
-              }
-            } as any)}
-          >
-            <Popup {...({ onClose: handlePopupClose } as any)}>
-              <div className="p-2">
-                <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
-                <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>
-                <p className="text-sm">
-                  Status:
-                  <span className={`ml-1 px-2 py-0.5 rounded text-white text-xs font-medium ${getStatusColorFromData(vehicleData?.status || '')}`}>
-                    {getVehicleStatusFromData(vehicleData?.status || '')}
-                  </span>
-                </p>
-                <p className="text-sm">Available Seats: {vehicleData?.available_seats || 0}</p>
-                <p className="text-sm">Plate: {vehicleData?.plate || 'N/A'}</p>
-              </div>
-            </Popup>
-          </Marker>
+          <AnimatedVehicleMarker
+            position={vehicleLocation}
+            icon={vehicleIcon}
+            vehicleData={vehicleData}
+            onMarkerClick={handleMarkerClick}
+            onPopupClose={handlePopupClose}
+            getVehicleStatusFromData={getVehicleStatusFromData}
+            getStatusColorFromData={getStatusColorFromData}
+          />
         )}
       </MapContainer>
     </div>

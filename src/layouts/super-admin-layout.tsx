@@ -166,7 +166,7 @@ const getSuperAdminPageTitle = (pathname: string) => {
     case "/super-admin/fleet-management":
       return "Registration Requests";
     case "/super-admin/plans":
-      return "Plans Management";
+      return "Plans";
     case "/super-admin/iot-management":
       return "Device";
     case "/super-admin/add-routes":

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import api from "@/utils/api";
 import { useUser } from "@/context/userContext";
 
@@ -22,14 +23,20 @@ export default function AddVehicle() {
   const [plate, setPlate] = useState("");
   const [driver, setDriver] = useState("");
   const [capacity, setCapacity] = useState("30");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { user } = useUser();
 
   // 🔹 Fetch routes dynamically from backend
   useEffect(() => {
     const fetchRoutes = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
 
       try {
+        setLoading(true);
         const res = await api.get(`/declared_routes/routes/${user.id}`);
         // Example response: [{ start_location: "Villa", end_location: "Cogon" }]
         const formattedRoutes = res.data.map(
@@ -43,6 +50,8 @@ export default function AddVehicle() {
       } catch (err: any) {
         console.error("Failed to load routes:", err.response?.data || err.message);
         setRoutes([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -54,8 +63,11 @@ export default function AddVehicle() {
 
     if (!user?.id) {
       console.error("No fleet_id found for user");
+      alert("User authentication error. Please refresh and try again.");
       return;
     }
+
+    setSaving(true);
 
     const payload = {
       location: { latitude: 8.654321, longitude: 124.123456 },
@@ -78,15 +90,55 @@ export default function AddVehicle() {
       setCapacity("30");
       if (routes.length > 0) setSelectedRoute(routes[0]);
       setSelectedStatus(statuses[0]);
+      
+      alert("Vehicle added successfully!");
     } catch (err: any) {
       console.error("Failed to add vehicle:", err.response?.data || err.message);
+      alert("Failed to add vehicle. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
+
+  // Skeleton components
+  const FormSkeleton = () => (
+    <div className="flex flex-col gap-7 justify-center h-full md:col-span-1">
+      {[...Array(4)].map((_, index) => (
+        <div key={index} className="flex flex-col gap-2 animate-pulse">
+          <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="w-full h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <ScrollArea className="bg-background h-screen w-full">
+        <div className="flex w-full h-full flex-1 items-center justify-center text-card-foreground">
+          <div className="flex flex-col justify-between w-full h-full rounded-xl p-12">
+            <div className="flex w-full justify-between items-start">
+              <div>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Loading form data...
+                </p>
+              </div>
+              <div className="w-32 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 items-start flex-1">
+              <FormSkeleton />
+            </div>
+          </div>
+        </div>
+      </ScrollArea>
+    );
+  }
 
   return (
     <ScrollArea className="bg-background h-screen w-full">
       <div className="flex w-full h-full flex-1 items-center justify-center text-card-foreground">
-        <div className="flex flex-col justify-between w-full h-full rounded-xl p-12">
+        <div className="flex flex-col justify-between w-full h-full rounded-xl p-12 pt-16">
           <div className="flex w-full justify-between items-start">
             <div>
               <p className="text-sm text-muted-foreground mb-6">
@@ -95,10 +147,18 @@ export default function AddVehicle() {
             </div>
             <Button
               type="submit"
-              className="bg-blue-500 hover:bg-blue-500 text-white font-semibold px-6 py-2 rounded-lg cursor-pointer"
+              disabled={saving}
+              className="bg-blue-500 hover:bg-blue-500 text-white font-semibold px-6 py-2 rounded-lg cursor-pointer disabled:opacity-50 flex items-center gap-2"
               form="add-vehicle-form"
             >
-              Save Vehicle
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving Vehicle...
+                </>
+              ) : (
+                'Save Vehicle'
+              )}
             </Button>
           </div>
 
@@ -117,6 +177,7 @@ export default function AddVehicle() {
                   required
                   value={plate}
                   onChange={(e) => setPlate(e.target.value)}
+                  disabled={saving}
                   className="bg-card"
                 />
               </div>
@@ -130,6 +191,7 @@ export default function AddVehicle() {
                   required
                   value={driver}
                   onChange={(e) => setDriver(e.target.value)}
+                  disabled={saving}
                   className="bg-card"
                 />
               </div>
@@ -139,7 +201,7 @@ export default function AddVehicle() {
                 <Select
                   value={selectedRoute}
                   onValueChange={setSelectedRoute}
-                  disabled={routes.length === 0}
+                  disabled={routes.length === 0 || saving}
                 >
                   <SelectTrigger className="w-full bg-card">
                     <SelectValue

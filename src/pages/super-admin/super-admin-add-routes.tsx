@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Upload, File, X, Route, Search, MapPin } from "lucide-react";
+import { Upload, File, X, Route, Search, MapPin, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,6 +39,7 @@ export default function SuperAdminAddRoutes() {
   const [searchValue, setSearchValue] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const [routes, setRoutes] = useState<Route[]>([]);
   const ws = useRef<WebSocket | null>(null);
@@ -55,6 +56,7 @@ export default function SuperAdminAddRoutes() {
 
       ws.current.onopen = () => {
         console.log('WebSocket connected for real-time routes');
+        setInitialLoading(false);
       };
 
       ws.current.onmessage = (event) => {
@@ -164,6 +166,7 @@ export default function SuperAdminAddRoutes() {
   useEffect(() => {
     const fetchRoutes = async () => {
       try {
+        setInitialLoading(true);
         const token = localStorage.getItem("token");
         const res = await fetch(`${apiBaseURL}/declared_routes/superadmin/all/routes`, {
           headers: {
@@ -186,6 +189,8 @@ export default function SuperAdminAddRoutes() {
         setRoutes(formattedRoutes);
       } catch (error) {
         console.error("Error fetching routes:", error);
+      } finally {
+        setInitialLoading(false);
       }
     };
 
@@ -323,9 +328,65 @@ export default function SuperAdminAddRoutes() {
     }
   };
 
+  // Skeleton components
+  const TableSkeleton = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Route className="w-5 h-5" />
+          <div className="w-32 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Company</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Location</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Location</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (Start)</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (End)</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">GeoJSON</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(6)].map((_, index) => (
+                <tr key={index} className="border-b border-border">
+                  <td className="py-4 px-4">
+                    <div className="w-28 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-20 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-20 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-20 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="w-32 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <ScrollArea className="h-screen w-full">
-      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
+      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 pt-8 mb-10">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Route className="w-8 h-8 text-primary" />
@@ -351,14 +412,17 @@ export default function SuperAdminAddRoutes() {
         </div>
 
         {/* Routes Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Route className="w-5 h-5" />
-              Routes ({filteredRoutes.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {initialLoading ? (
+          <TableSkeleton />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Route className="w-5 h-5" />
+                Routes ({filteredRoutes.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -441,6 +505,7 @@ export default function SuperAdminAddRoutes() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Upload Route Modal */}
         <Dialog
@@ -618,15 +683,15 @@ export default function SuperAdminAddRoutes() {
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {loading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin"></div>
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Uploading GeoJSON...
-                    </div>
+                    </>
                   ) : (
-                    <div className="cursor-pointer flex items-center justify-center gap-2">
-                      <Upload className="w-4 h-4" />
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
                       Upload GeoJSON
-                    </div>
+                    </>
                   )}
                 </Button>
                 <Button

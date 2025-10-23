@@ -282,12 +282,11 @@ export const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
       to={link.href}
       onClick={handleClick}
       className={cn(
-        "flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium relative ",
-        " group",
-        "hover:bg-sidebar-accent focus:outline-none",
+        "flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium relative transition-all duration-200",
+        "group hover:bg-sidebar-accent hover:shadow-sm hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring",
         link.isActive
-          ? "bg-sidebar-accent"
-          : "bg-sidebar",
+          ? "bg-sidebar-accent shadow-sm border-l-2 border-l-primary"
+          : "bg-sidebar hover:-translate-y-0.5",
         className
       )}
     >

@@ -69,7 +69,7 @@ export default function Landing() {
                   alt="hero"
                   height={720}
                   width={1400}
-                  className="mx-auto rounded-2xl object-cover h-full object-left-top"
+                  className="mx-auto rounded-2xl object-contain w-full h-full"
                   draggable={false}
                 />
               </ContainerScroll>

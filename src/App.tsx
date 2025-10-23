@@ -23,6 +23,7 @@ import SuperAdminFleetManagement from "./pages/super-admin/super-admin-fleet-man
 import SuperAdminCompanyDetails from "./pages/super-admin/super-admin-company-details";
 import SuperAdminIOTManagement from "./pages/super-admin/super-admin-iot-management";
 import SuperAdminAddRoutes from "./pages/super-admin/super-admin-add-routes.tsx";
+import SuperAdminPlans from "./pages/super-admin/super-admin-plans";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { VehicleProvider } from "./context/vehicleContext";
 
@@ -65,6 +66,7 @@ function AppWithProviders() {
                                     <Route path="companies" element={<SuperAdminCompanies />} />
                                     <Route path="company/:companyId" element={<SuperAdminCompanyDetails />} />
                                     <Route path="fleet-management" element={<SuperAdminFleetManagement />} />
+                                    <Route path="plans" element={<SuperAdminPlans />} />
                                     <Route path="iot-management" element={<SuperAdminIOTManagement />} />
                                     <Route path="add-routes" element={<SuperAdminAddRoutes />} />
                                     <Route path="add-user" element={<div className="p-6">Add User Page - Coming Soon</div>} />

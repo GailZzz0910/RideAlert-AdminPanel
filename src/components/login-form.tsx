@@ -66,12 +66,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
               <div className="grid gap-3">
                 <div className="flex items-center">
                   <Label className="text-white" htmlFor="password">Password</Label>
-                  <a
-                    href="#"
-                    className="text-white ml-auto inline-block text-sm underline-offset-4 hover:underline cursor-pointer"
-                  >
-                    Forgot your password?
-                  </a>
+                  
                 </div>
                 <div className="relative">
                   <Input
@@ -98,7 +93,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                 <div className="text-red-500 text-sm text-center">{error}</div>
               )}
               <div className="flex flex-col gap-3">
-                <Button type="submit" className="w-full bg-white/90 text-black cursor-pointer hover:bg-white/80" disabled={loading}>
+                <Button type="submit" className="w-full bg-blue-500 text-white cursor-pointer hover:bg-blue-600" disabled={loading}>
                   {loading ? "Logging in..." : "Login"}
                 </Button>
                 <div className="text-center">

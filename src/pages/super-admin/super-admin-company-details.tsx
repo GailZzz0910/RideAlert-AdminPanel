@@ -256,7 +256,7 @@ export default function SuperAdminCompanyDetails() {
 
   return (
     <ScrollArea className="h-screen w-full">
-      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
+      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 pt-8 mb-10">
 
         {/* Header */}
         <div className="flex items-center justify-between">

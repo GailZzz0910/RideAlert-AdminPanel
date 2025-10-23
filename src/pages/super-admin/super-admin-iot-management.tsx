@@ -19,7 +19,8 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Building
+  Building,
+  Loader2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -46,11 +47,60 @@ import { useUser } from "@/context/userContext";
 import { wsBaseURL } from "@/utils/api";
 import { apiBaseURL } from "@/utils/api";
 
+// Skeleton component for loading states
+const TableSkeleton = () => (
+  <div className="animate-pulse">
+    {[...Array(5)].map((_, i) => (
+      <div key={i} className="border-b border-border">
+        <div className="py-4 px-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-5 h-5 bg-muted rounded"></div>
+            <div>
+              <div className="h-4 bg-muted rounded w-32 mb-2"></div>
+              <div className="h-3 bg-muted/60 rounded w-48"></div>
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="h-6 bg-muted rounded w-16"></div>
+            <div className="h-6 bg-muted rounded w-20"></div>
+            <div className="h-4 bg-muted rounded w-12"></div>
+            <div className="h-6 bg-muted rounded w-20"></div>
+            <div className="flex gap-2">
+              <div className="h-8 w-8 bg-muted rounded"></div>
+              <div className="h-8 w-8 bg-muted rounded"></div>
+              <div className="h-8 w-8 bg-muted rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const SummaryCardSkeleton = () => (
+  <div className="animate-pulse">
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-muted rounded-lg"></div>
+          <div>
+            <div className="h-3 bg-muted rounded w-16 mb-2"></div>
+            <div className="h-6 bg-muted rounded w-8"></div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+);
+
 export default function SuperAdminIOTManagement() {
   const [searchValue, setSearchValue] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedDevice, setSelectedDevice] = useState<any>(null);
   const [devices, setDevices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [companies, setCompanies] = useState<any[]>([]);
@@ -78,6 +128,7 @@ export default function SuperAdminIOTManagement() {
           try {
             const data = JSON.parse(event.data);
             if (data.devices) {
+              setLoading(false); // Data received, stop loading
               const mapped = data.devices.map((d: any) => ({
                 _id: typeof d._id === "string" ? d._id : d._id.$oid || String(d._id),
                 objectId: d.device_name,
@@ -222,8 +273,11 @@ export default function SuperAdminIOTManagement() {
 
   const handleDeleteDevice = async (deviceId: string) => {
     if (!deviceId) return alert("Device ID is missing!");
+    if (deleting) return; // Prevent multiple deletions
 
     try {
+      setDeleting(deviceId);
+      
       const response = await fetch(`${apiBaseURL}/iot_devices/${deviceId}`, {
         method: "DELETE",
         headers: {
@@ -243,6 +297,8 @@ export default function SuperAdminIOTManagement() {
     } catch (err: any) {
       alert(`Error: ${err.message}`);
       console.error(err);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -268,7 +324,11 @@ export default function SuperAdminIOTManagement() {
   };
 
   const handleSaveEdit = async () => {
+    if (updating) return; // Prevent multiple updates
+    
     try {
+      setUpdating(true);
+      
       // Find the selected company object
       const selectedCompany = editForm.companyId === "unassigned" ? null : companies.find(c => c.id === editForm.companyId);
       const newCompanyName = selectedCompany ? selectedCompany.name : "";
@@ -324,6 +384,8 @@ export default function SuperAdminIOTManagement() {
     } catch (err: any) {
       alert(`Error updating device: ${err.message}`);
       console.error(err);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -408,74 +470,84 @@ export default function SuperAdminIOTManagement() {
 
   return (
     <ScrollArea className="h-screen w-full">
-      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 mb-10">
+      <div className="flex flex-col min-h-screen w-full flex-1 gap-6 px-7 bg-background text-card-foreground p-5 pt-8 mb-10">
 
         <h1 className="text-3xl font-bold text-foreground">IoT Device Management</h1>
             <p className="text-muted-foreground">Create IoT Devices and assign them to a fleet company.</p>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                  <Cpu className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Devices</p>
-                  <p className="text-2xl font-bold text-foreground">{devices.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {loading ? (
+            <>
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+              <SummaryCardSkeleton />
+            </>
+          ) : (
+            <>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                      <Cpu className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Devices</p>
+                      <p className="text-2xl font-bold text-foreground">{devices.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Online</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {devices.filter(d => d.status === "online").length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Online</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {devices.filter(d => d.status === "online").length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
-                  <WifiOff className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Offline</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {devices.filter(d => d.status === "offline").length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
-                  <Building className="w-5 h-5 text-gray-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Company Assigned</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {devices.filter(d => d.companyName !== null).length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                      <WifiOff className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Offline</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {devices.filter(d => d.status === "offline").length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
+                      <Building className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Company Assigned</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {devices.filter(d => d.companyName !== null).length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Controls */}
@@ -508,8 +580,12 @@ export default function SuperAdminIOTManagement() {
 
           {/* Add Device Button */}
           <AddIOTDeviceDialog onAddDevice={handleAddDevice}>
-            <Button className="cursor-pointer">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button className="cursor-pointer" disabled={loading || updating}>
+              {loading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
               Add Device
             </Button>
           </AddIOTDeviceDialog>
@@ -520,7 +596,7 @@ export default function SuperAdminIOTManagement() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Cpu className="w-5 h-5" />
-              IOT Devices ({filteredDevices.length})
+              IOT Devices {!loading && `(${filteredDevices.length})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -537,7 +613,14 @@ export default function SuperAdminIOTManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDevices.map((device) => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="p-0">
+                        <TableSkeleton />
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredDevices.map((device) => (
                     <tr 
                       key={device._id} 
                       className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
@@ -583,6 +666,7 @@ export default function SuperAdminIOTManagement() {
                             variant="outline" 
                             size="sm" 
                             className="cursor-pointer"
+                            disabled={updating || deleting === device._id}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditDevice(device);
@@ -597,11 +681,16 @@ export default function SuperAdminIOTManagement() {
                                 variant="outline"
                                 size="sm"
                                 className="cursor-pointer text-red-600 hover:text-red-700"
+                                disabled={updating || deleting === device._id}
                                 onClick={(e) => {
                                   e.stopPropagation(); // Prevent row click when opening delete dialog
                                 }}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                {deleting === device._id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -613,12 +702,20 @@ export default function SuperAdminIOTManagement() {
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogCancel disabled={deleting === device._id}>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   className="bg-red-600 hover:bg-red-700"
+                                  disabled={deleting === device._id}
                                   onClick={() => handleDeleteDevice(device._id)}
                                 >
-                                  Delete Device
+                                  {deleting === device._id ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Deleting...
+                                    </>
+                                  ) : (
+                                    'Delete Device'
+                                  )}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -626,12 +723,13 @@ export default function SuperAdminIOTManagement() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
 
-            {filteredDevices.length === 0 && (
+            {!loading && filteredDevices.length === 0 && (
               <div className="text-center py-8">
                 <Cpu className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">No devices found</h3>
@@ -805,13 +903,22 @@ export default function SuperAdminIOTManagement() {
                       <>
                         <Button 
                           className="flex-1 cursor-pointer"
+                          disabled={updating}
                           onClick={handleSaveEdit}
                         >
-                          Save Changes
+                          {updating ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save Changes'
+                          )}
                         </Button>
                         <Button 
                           variant="outline" 
                           className="flex-1 cursor-pointer"
+                          disabled={updating}
                           onClick={handleCancelEdit}
                         >
                           Cancel
