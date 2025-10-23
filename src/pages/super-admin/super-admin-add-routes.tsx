@@ -81,8 +81,7 @@ export default function SuperAdminAddRoutes() {
           setRoutes(prev => {
             const exists = prev.some(r => r.id === newRoute.id);
             if (exists) {
-              console.log('🔄 Route already exists, skipping duplicate:', newRoute.id);
-              return prev;
+              return prev.map(r => r.id === newRoute.id ? newRoute : r);
             }
             return [...prev, newRoute];
           });
@@ -303,8 +302,8 @@ export default function SuperAdminAddRoutes() {
       }
 
       // Update the selected route and routes list immediately
-      setRoutes(prev => prev.map(r => 
-        r.id === selectedRoute.id 
+      setRoutes(prev => prev.map(r =>
+        r.id === selectedRoute.id
           ? { ...r, hasGeoJSON: true }
           : r
       ));
@@ -423,88 +422,88 @@ export default function SuperAdminAddRoutes() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Company</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Location</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Location</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (Start)</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (End)</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">GeoJSON</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRoutes.map((route) => (
-                    <tr
-                      key={route.id || `${route.company}-${route.startLocation}-${route.endLocation}`}
-                      className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => {
-                        setSelectedRoute(route);
-                        setIsUploadModalOpen(true);
-                      }}
-                    >
-                      <td className="py-4 px-4">
-                        <span className="text-foreground font-medium">{route.company}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-foreground">{route.startLocation}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-foreground">{route.endLocation}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-sm text-muted-foreground">{route.landmarkStart}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-sm text-muted-foreground">{route.landmarkEnd}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        {route.hasGeoJSON ? (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
-                            Uploaded
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-gray-600 border-gray-300">
-                            Not Uploaded
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="py-4 px-4">
-                        <Button
-                          size="sm"
-                          className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedRoute(route);
-                            setIsUploadModalOpen(true);
-                          }}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload GeoJSON
-                        </Button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Company</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Start Location</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">End Location</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (Start)</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Landmark (End)</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">GeoJSON</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredRoutes.length === 0 && (
-              <div className="text-center py-8">
-                <Route className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-muted-foreground mb-2">No routes found</h3>
-                <p className="text-sm text-muted-foreground">
-                  {searchValue
-                    ? "Try adjusting your search criteria."
-                    : "No routes available at the moment. Click on any row to upload GeoJSON files."}
-                </p>
+                  </thead>
+                  <tbody>
+                    {filteredRoutes.map((route) => (
+                      <tr
+                        key={route.id || `${route.company}-${route.startLocation}-${route.endLocation}`}
+                        className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => {
+                          setSelectedRoute(route);
+                          setIsUploadModalOpen(true);
+                        }}
+                      >
+                        <td className="py-4 px-4">
+                          <span className="text-foreground font-medium">{route.company}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="text-foreground">{route.startLocation}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="text-foreground">{route.endLocation}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="text-sm text-muted-foreground">{route.landmarkStart}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="text-sm text-muted-foreground">{route.landmarkEnd}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          {route.hasGeoJSON ? (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800">
+                              Uploaded
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-600 border-gray-300">
+                              Not Uploaded
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-4 px-4">
+                          <Button
+                            size="sm"
+                            className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRoute(route);
+                              setIsUploadModalOpen(true);
+                            }}
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload GeoJSON
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              {filteredRoutes.length === 0 && (
+                <div className="text-center py-8">
+                  <Route className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No routes found</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {searchValue
+                      ? "Try adjusting your search criteria."
+                      : "No routes available at the moment. Click on any row to upload GeoJSON files."}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Upload Route Modal */}

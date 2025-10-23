@@ -27,7 +27,39 @@ export default function NotifDropdown() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
-  const { user, token } = useUser(); // Use your UserContext
+  const { user, token } = useUser();
+
+  // Filter notifications based on user role and company
+  const shouldShowNotification = (notification: Notification): boolean => {
+    if (!user) return false;
+
+    // Superadmins see all route creation notifications
+    if (user.role === 'superadmin') {
+      return true; // Superadmins see everything
+    }
+
+    // Admins should only see notifications for their company
+    if (user.role === 'admin') {
+      // Check if notification is for this specific company
+      const notificationCompanyId = notification.data?.company_id;
+      const userCompanyId = user.fleet_id || user.id; // Use fleet_id or id depending on your user structure
+
+      // For GeoJSON uploads and other company-specific notifications
+      if (notification.type === 'geojson_uploaded') {
+        return notificationCompanyId === userCompanyId;
+      }
+
+      // Admins don't see route creation notifications (those are for superadmins only)
+      if (notification.type === 'route_added') {
+        return false;
+      }
+
+      // For other notification types, check if it's for this company
+      return notificationCompanyId === userCompanyId;
+    }
+
+    return false;
+  };
 
   // WebSocket connection for real-time notifications
   const connectWebSocket = () => {
@@ -49,7 +81,7 @@ export default function NotifDropdown() {
       // Send user identification for role-based filtering
       const userData = {
         role: user.role,
-        user_id: user.id,
+        user_id: user.fleet_id || user.id, // Send the company/fleet ID
         username: user.company_name
       };
       console.log('👤 Sending user identification:', userData);
@@ -74,30 +106,28 @@ export default function NotifDropdown() {
           console.log('🎯 Processing new route notification:', data.notification);
 
           // Check if current user should see this notification
-          // Only superadmins should see route creation notifications
-          if (user?.role === 'superadmin') {
-            console.log('✅ User is superadmin, showing route notification');
+          if (shouldShowNotification(data.notification)) {
+            console.log('✅ User should see this notification');
             handleNewRouteNotification(data.notification);
           } else {
-            console.log('🔕 User is not superadmin, filtering out route notification');
+            console.log('🔕 User should not see this notification, filtering out');
           }
         }
         // Handle GeoJSON upload notifications
         else if (data.type === 'geojson_uploaded_notification') {
           console.log('🎯 Processing GeoJSON upload notification:', data.notification);
 
-          // Only admins of the company should see this notification
-          if (user?.role === 'admin') {
-            console.log('✅ User is admin, showing GeoJSON notification');
+          // Check if current user should see this notification
+          if (shouldShowNotification(data.notification)) {
+            console.log('✅ User should see GeoJSON notification');
             handleGeoJSONNotification(data.notification);
           } else {
-            console.log('🔕 User is not admin, filtering out GeoJSON notification');
+            console.log('🔕 User should not see GeoJSON notification, filtering out');
           }
         }
         // Handle route deletion notifications
         else if (data.type === 'deleted_route') {
           console.log('🗑️ Route deletion notification:', data);
-          // You can handle route deletions here if needed
         }
         // Handle other notification types
         else if (data.type === 'updated_route') {
@@ -173,7 +203,7 @@ export default function NotifDropdown() {
         new Notification(newNotification.title, {
           body: newNotification.description,
           icon: '/logo.png',
-          tag: newNotification.id // Prevent duplicate browser notifications
+          tag: newNotification.id
         });
         console.log('📢 Browser notification shown');
       } catch (browserError) {
@@ -181,12 +211,10 @@ export default function NotifDropdown() {
       }
     }
 
-    // Optional: Play sound notification
     playNotificationSound();
   };
 
   const handleGeoJSONNotification = (notification: any) => {
-    // Create a proper notification object
     const newNotification: Notification = {
       id: notification.id || `geojson_${Date.now()}`,
       title: notification.title,
@@ -215,13 +243,11 @@ export default function NotifDropdown() {
       return [newNotification, ...prev];
     });
 
-    // Only increment unread count if it's not read
     if (!newNotification.is_read) {
       setUnreadCount(prev => prev + 1);
       console.log('🔴 Unread count incremented');
     }
 
-    // Show browser notification (if permission granted)
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
         new Notification(newNotification.title, {
@@ -239,15 +265,13 @@ export default function NotifDropdown() {
   };
 
   const playNotificationSound = () => {
-    // You can add a notification sound here
     console.log('🔊 Notification sound triggered');
   };
 
-
   // Fetch initial notifications from API
   const fetchNotifications = async () => {
-    if (!token) {
-      console.log('🔐 No token available for fetching notifications');
+    if (!token || !user) {
+      console.log('🔐 No token or user available for fetching notifications');
       return;
     }
 
@@ -268,18 +292,12 @@ export default function NotifDropdown() {
         });
 
         if (data.success && data.notifications) {
-          // Filter notifications based on user role
-          const filteredNotifications = data.notifications.filter((notif: Notification) => {
-            // Superadmins see all notifications
-            if (user?.role === 'superadmin') return true;
+          // Filter notifications based on user role and company
+          const filteredNotifications = data.notifications.filter((notif: Notification) => 
+            shouldShowNotification(notif)
+          );
 
-            // Non-superadmins don't see route creation notifications
-            if (notif.type === 'route_added') return false;
-
-            return true;
-          });
-
-          console.log(`🔄 Merging notifications: ${filteredNotifications.length} after role filtering`);
+          console.log(`🔄 Filtered notifications: ${data.notifications.length} → ${filteredNotifications.length}`);
 
           // Merge with existing notifications, avoiding duplicates
           setNotifications(prev => {
@@ -292,7 +310,9 @@ export default function NotifDropdown() {
             return [...prev, ...newNotifications];
           });
 
-          setUnreadCount(data.unread_count || 0);
+          // Update unread count based on filtered notifications
+          const unreadFiltered = filteredNotifications.filter((n: Notification) => !n.is_read).length;
+          setUnreadCount(unreadFiltered);
         }
       } else {
         console.error('❌ Failed to fetch notifications:', response.status, response.statusText);
@@ -303,7 +323,6 @@ export default function NotifDropdown() {
   };
 
   const handleRouteDeletionNotification = (notification: any) => {
-    // Create a proper notification object
     const deletionNotification: Notification = {
       id: notification.id || `deleted_${Date.now()}`,
       title: notification.title,
@@ -320,7 +339,6 @@ export default function NotifDropdown() {
       title: deletionNotification.title
     });
 
-    // Check for duplicates before adding
     setNotifications(prev => {
       const exists = prev.some(n => n.id === deletionNotification.id);
       if (exists) {
@@ -332,13 +350,11 @@ export default function NotifDropdown() {
       return [deletionNotification, ...prev];
     });
 
-    // Only increment unread count if it's not read
     if (!deletionNotification.is_read) {
       setUnreadCount(prev => prev + 1);
       console.log('🔴 Unread count incremented for deletion');
     }
 
-    // Show browser notification (if permission granted)
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
         new Notification(deletionNotification.title, {
@@ -352,17 +368,13 @@ export default function NotifDropdown() {
       }
     }
 
-    // Optional: Play different sound for deletions
     playDeletionSound();
   };
 
-  // Optional: Different sound for deletions
   const playDeletionSound = () => {
     console.log('🔊 Deletion notification sound triggered');
-    // You can implement a different sound for deletions
   };
 
-  // Request browser notification permission
   const requestNotificationPermission = () => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -421,20 +433,6 @@ export default function NotifDropdown() {
     }
   };
 
-  useEffect(() => {
-    if (user && token) {
-      fetchNotifications(); // Fetch from database on login
-      connectWebSocket();
-      requestNotificationPermission();
-    }
-
-    return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
-    };
-  }, [user, token]);
-
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -446,9 +444,8 @@ export default function NotifDropdown() {
     return `${Math.floor(diffInMinutes / 1440)} days ago`;
   };
 
-  // Don't render if no user (or show different state)
   if (!user) {
-    return null; // or return a loading/disabled state
+    return null;
   }
 
   return (
