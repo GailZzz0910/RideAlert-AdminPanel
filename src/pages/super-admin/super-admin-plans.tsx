@@ -63,6 +63,7 @@ interface BackendSubscriptionPlan {
   is_active: boolean;
   created_at: string;
   last_updated: string;
+  popular?: boolean;
 }
 
 const iconOptions = [
@@ -93,7 +94,7 @@ const transformPlanData = (backendPlan: BackendSubscriptionPlan): SubscriptionPl
         }))
       : [],
     icon: "Car",
-    popular: false,
+    popular: (backendPlan as any).popular || false,
   };
 };
 
@@ -299,6 +300,7 @@ export default function SuperAdminPlans() {
         max_vehicles: formData.maxVehicles,
         features: validFeatures,
         is_active: true,
+        popular: formData.popular
       };
 
       if (editingPlan && editingPlan.id) {
