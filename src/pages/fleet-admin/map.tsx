@@ -341,6 +341,7 @@ const AnimatedVehicleMarker: React.FC<{
     <Marker
       ref={markerRef}
       position={displayPos}
+      icon={icon}
       eventHandlers={{
         click: () => {
           onMarkerClick({
@@ -360,7 +361,7 @@ const AnimatedVehicleMarker: React.FC<{
               {getVehicleStatusFromData(vehicleData?.status || '')}
             </span>
           </p>
-          {/* <p className="text-sm">Available Seats: {vehicleData?.available_seats || 0}</p> */}
+          <p className="text-sm">Available Seats: {vehicleData?.available_seats || 0}</p>
           <p className="text-sm">Plate: {vehicleData?.plate || 'N/A'}</p>
         </div>
       </Popup>
@@ -481,7 +482,7 @@ const Map: React.FC = () => {
   return (
     <div style={{ height: 'calc(100vh - 64px)', width: '100%', position: 'relative', zIndex: 0 }}>
       <MapContainer
-        center={center}
+        center={center as L.LatLngExpression}
         zoom={13}
         style={{ height: '100%', width: '100%', zIndex: 0 }}
       >
@@ -493,6 +494,7 @@ const Map: React.FC = () => {
         {userLocation && (
           <Marker
             position={userLocation}
+            icon={userIcon}
             eventHandlers={{
               click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
             }}
