@@ -433,7 +433,7 @@ export default function SuperAdminPlans() {
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
@@ -466,7 +466,7 @@ export default function SuperAdminPlans() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
             </>
           )}
         </div>
