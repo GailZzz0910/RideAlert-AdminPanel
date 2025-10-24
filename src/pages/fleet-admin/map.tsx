@@ -187,7 +187,6 @@ import { useLocation } from 'react-router-dom';
 import useVehicleLocationWS from '@/components/useVehicleLocationWS';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LatLngExpression } from 'leaflet';
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -217,7 +216,7 @@ const vehicleIcon = new L.Icon({
 });
 
 // Default center (Cagayan de Oro, Philippines)
-const center: LatLngExpression = [8.4803, 124.6498];
+const center: [number, number] = [8.4803, 124.6498];
 
 interface VehicleData {
   id: string;
@@ -238,13 +237,13 @@ const fetchRoute = async (start: [number, number], end: [number, number]): Promi
     const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
     const response = await fetch(url);
     const data = await response.json();
-    
+
     if (data.code === 'Ok' && data.routes && data.routes[0]) {
       // Convert GeoJSON coordinates [lng, lat] to Leaflet format [lat, lng]
       const coordinates = data.routes[0].geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
       return coordinates;
     }
-    
+
     // Fallback to straight line if routing fails
     return [start, end];
   } catch (error) {
@@ -274,6 +273,9 @@ const AnimatedVehicleMarker: React.FC<{
     const marker = markerRef.current;
     if (!marker) return;
 
+    // Set the icon on the marker
+    marker.setIcon(icon);
+
     const startPos = currentPosRef.current;
     const endPos = position;
 
@@ -298,10 +300,10 @@ const AnimatedVehicleMarker: React.FC<{
         // Calculate which segment of the path we're on
         const targetIndex = Math.floor(progress * (totalPoints - 1));
         const nextIndex = Math.min(targetIndex + 1, totalPoints - 1);
-        
+
         // Calculate progress within the current segment
         const segmentProgress = (progress * (totalPoints - 1)) - targetIndex;
-        
+
         const currentPoint = path[targetIndex];
         const nextPoint = path[nextIndex];
 
@@ -342,7 +344,6 @@ const AnimatedVehicleMarker: React.FC<{
     <Marker
       ref={markerRef}
       position={displayPos}
-      icon={icon}
       eventHandlers={{
         click: () => {
           onMarkerClick({
@@ -483,9 +484,11 @@ const Map: React.FC = () => {
   return (
     <div style={{ height: 'calc(100vh - 64px)', width: '100%', position: 'relative', zIndex: 0 }}>
       <MapContainer
-        center={center}
-        zoom={13}
-        style={{ height: '100%', width: '100%', zIndex: 0 }}
+        {...{
+          center: center as L.LatLngExpression,
+          zoom: 13,
+          style: { height: '100%', width: '100%', zIndex: 0 }
+        }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -495,7 +498,7 @@ const Map: React.FC = () => {
         {userLocation && (
           <Marker
             position={userLocation}
-            // icon={userIcon as L.Icon}
+            // icon={userIcon}
             eventHandlers={{
               click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
             }}
@@ -512,7 +515,7 @@ const Map: React.FC = () => {
         {vehicleLocation && (
           <AnimatedVehicleMarker
             position={vehicleLocation}
-            icon={vehicleIcon as L.Icon}
+            icon={vehicleIcon}
             vehicleData={vehicleData}
             onMarkerClick={handleMarkerClick}
             onPopupClose={handlePopupClose}
