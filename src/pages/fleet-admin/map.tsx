@@ -187,6 +187,7 @@ import { useLocation } from 'react-router-dom';
 import useVehicleLocationWS from '@/components/useVehicleLocationWS';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { LatLngExpression } from 'leaflet';
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -216,7 +217,7 @@ const vehicleIcon = new L.Icon({
 });
 
 // Default center (Cagayan de Oro, Philippines)
-const center: [number, number] = [8.4803, 124.6498];
+const center: LatLngExpression = [8.4803, 124.6498];
 
 interface VehicleData {
   id: string;
@@ -482,7 +483,7 @@ const Map: React.FC = () => {
   return (
     <div style={{ height: 'calc(100vh - 64px)', width: '100%', position: 'relative', zIndex: 0 }}>
       <MapContainer
-        center={center as L.LatLngExpression}
+        center={center}
         zoom={13}
         style={{ height: '100%', width: '100%', zIndex: 0 }}
       >
@@ -494,7 +495,7 @@ const Map: React.FC = () => {
         {userLocation && (
           <Marker
             position={userLocation}
-            icon={userIcon}
+            // icon={userIcon as L.Icon}
             eventHandlers={{
               click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
             }}
@@ -511,7 +512,7 @@ const Map: React.FC = () => {
         {vehicleLocation && (
           <AnimatedVehicleMarker
             position={vehicleLocation}
-            icon={vehicleIcon}
+            icon={vehicleIcon as L.Icon}
             vehicleData={vehicleData}
             onMarkerClick={handleMarkerClick}
             onPopupClose={handlePopupClose}
