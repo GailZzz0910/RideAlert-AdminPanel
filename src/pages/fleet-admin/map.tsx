@@ -266,6 +266,7 @@ const AnimatedVehicleMarker: React.FC<{
   const markerRef = useRef<L.Marker | null>(null);
   const animationRef = useRef<number | null>(null);
   const currentPosRef = useRef<[number, number]>(position);
+  const [displayPos, setDisplayPos] = useState<[number, number]>(position);
 
   useEffect(() => {
     const marker = markerRef.current;
@@ -306,8 +307,8 @@ const AnimatedVehicleMarker: React.FC<{
         const lat = currentPoint[0] + (nextPoint[0] - currentPoint[0]) * segmentProgress;
         const lng = currentPoint[1] + (nextPoint[1] - currentPoint[1]) * segmentProgress;
 
-        const newLatLng = L.latLng(lat, lng);
-        marker.setLatLng(newLatLng);
+        const newPos: [number, number] = [lat, lng];
+        setDisplayPos(newPos);
 
         if (progress < 1) {
           animationRef.current = requestAnimationFrame(animate);
@@ -338,7 +339,7 @@ const AnimatedVehicleMarker: React.FC<{
   return (
     <Marker
       ref={markerRef}
-      position={currentPosRef.current}
+      position={displayPos}
       icon={icon}
       eventHandlers={{
         click: () => onMarkerClick({
@@ -347,7 +348,7 @@ const AnimatedVehicleMarker: React.FC<{
         })
       }}
     >
-      <Popup onClose={onPopupClose}>
+      <Popup closeButton onClose={onPopupClose}>
         <div className="p-2">
           <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
           <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>
@@ -481,10 +482,10 @@ const Map: React.FC = () => {
         center={center}
         zoom={13}
         style={{ height: '100%', width: '100%', zIndex: 0 }}
-        zoomControl={true}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
         {/* User location marker */}
@@ -496,7 +497,7 @@ const Map: React.FC = () => {
               click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
             }}
           >
-            <Popup onClose={handlePopupClose}>
+            <Popup closeButton onClose={handlePopupClose}>
               <div className="p-2">
                 <h3 className="font-bold text-sm">Your Location</h3>
               </div>
