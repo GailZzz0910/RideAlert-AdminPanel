@@ -341,7 +341,6 @@ const AnimatedVehicleMarker: React.FC<{
     <Marker
       ref={markerRef}
       position={displayPos}
-      icon={icon}
       eventHandlers={{
         click: () => {
           onMarkerClick({
@@ -494,7 +493,6 @@ const Map: React.FC = () => {
         {userLocation && (
           <Marker
             position={userLocation}
-            icon={userIcon}
             eventHandlers={{
               click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
             }}
