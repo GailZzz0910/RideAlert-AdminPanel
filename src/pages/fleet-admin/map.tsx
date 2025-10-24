@@ -264,6 +264,7 @@ const AnimatedVehicleMarker: React.FC<{
   getStatusColorFromData: (status: string | null | undefined) => string;
 }> = ({ position, icon, vehicleData, onMarkerClick, onPopupClose, getVehicleStatusFromData, getStatusColorFromData }) => {
   const markerRef = useRef<L.Marker | null>(null);
+  const popupRef = useRef<L.Popup | null>(null);
   const animationRef = useRef<number | null>(null);
   const currentPosRef = useRef<[number, number]>(position);
   const [displayPos, setDisplayPos] = useState<[number, number]>(position);
@@ -340,16 +341,17 @@ const AnimatedVehicleMarker: React.FC<{
     <Marker
       ref={markerRef}
       position={displayPos}
-      title={vehicleData?.route || 'Vehicle'}
       icon={icon}
       eventHandlers={{
-        click: () => onMarkerClick({
-          position: position,
-          title: vehicleData?.route || 'Vehicle'
-        })
+        click: () => {
+          onMarkerClick({
+            position: position,
+            title: vehicleData?.route || 'Vehicle'
+          });
+        }
       }}
     >
-      <Popup onClose={onPopupClose}>
+      <Popup ref={popupRef} eventHandlers={{ remove: onPopupClose }}>
         <div className="p-2">
           <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
           <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>
@@ -359,7 +361,7 @@ const AnimatedVehicleMarker: React.FC<{
               {getVehicleStatusFromData(vehicleData?.status || '')}
             </span>
           </p>
-          <p className="text-sm">Available Seats: {vehicleData?.available_seats || 0}</p>
+          {/* <p className="text-sm">Available Seats: {vehicleData?.available_seats || 0}</p> */}
           <p className="text-sm">Plate: {vehicleData?.plate || 'N/A'}</p>
         </div>
       </Popup>
@@ -492,13 +494,12 @@ const Map: React.FC = () => {
         {userLocation && (
           <Marker
             position={userLocation}
-            title="Your Location"
             icon={userIcon}
             eventHandlers={{
               click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
             }}
           >
-            <Popup onClose={handlePopupClose}>
+            <Popup eventHandlers={{ remove: handlePopupClose }}>
               <div className="p-2">
                 <h3 className="font-bold text-sm">Your Location</h3>
               </div>
