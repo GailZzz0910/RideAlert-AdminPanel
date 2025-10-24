@@ -340,6 +340,7 @@ const AnimatedVehicleMarker: React.FC<{
     <Marker
       ref={markerRef}
       position={displayPos}
+      title={vehicleData?.route || 'Vehicle'}
       icon={icon}
       eventHandlers={{
         click: () => onMarkerClick({
@@ -348,7 +349,7 @@ const AnimatedVehicleMarker: React.FC<{
         })
       }}
     >
-      <Popup closeButton onClose={onPopupClose}>
+      <Popup onClose={onPopupClose}>
         <div className="p-2">
           <h3 className="font-bold">{vehicleData?.route || 'Vehicle'}</h3>
           <p className="text-sm">Driver: {vehicleData?.driverName || 'N/A'}</p>
@@ -485,19 +486,19 @@ const Map: React.FC = () => {
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
         {/* User location marker */}
         {userLocation && (
           <Marker
             position={userLocation}
+            title="Your Location"
             icon={userIcon}
             eventHandlers={{
               click: () => handleMarkerClick({ position: userLocation, title: 'Your Location' })
             }}
           >
-            <Popup closeButton onClose={handlePopupClose}>
+            <Popup onClose={handlePopupClose}>
               <div className="p-2">
                 <h3 className="font-bold text-sm">Your Location</h3>
               </div>
